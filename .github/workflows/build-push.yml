@@ -1,8 +1,6 @@
 name: Build and Push to DOCR
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 env:
@@ -60,4 +58,3 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta-agent.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
