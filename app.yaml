@@ -13,8 +13,9 @@ workers:
       repo: bikramkgupta/openclaw-cattle-mode
       branch: main
       deploy_on_push: false
-    source_dir: /
-    dockerfile_path: openclaw-agent-image/Dockerfile
+    # IMPORTANT: build context must be the image folder (Dockerfile uses relative COPY paths).
+    source_dir: openclaw-agent-image
+    dockerfile_path: Dockerfile
     instance_size_slug: apps-s-1vcpu-1gb-fixed
     instance_count: 1
     envs:
