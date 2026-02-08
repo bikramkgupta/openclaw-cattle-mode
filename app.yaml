@@ -12,9 +12,11 @@ workers:
   - name: openclaw-agent
     image:
       registry_type: DOCR
-      # Registry name: "openclaw" (change if your DOCR registry differs)
+      # DOCR registry name.
       # Full image: registry.digitalocean.com/openclaw/openclaw-agent:latest
-      repository: openclaw/openclaw-agent
+      registry: openclaw
+      # Repository name inside the registry (not including the registry prefix).
+      repository: openclaw-agent
       tag: latest
     instance_size_slug: apps-s-1vcpu-2gb
     instance_count: 1
@@ -43,6 +45,13 @@ workers:
       - key: AGENT_DEFAULT_MODEL
         scope: RUN_TIME
         value: ""
+
+      # Node/V8 memory:
+      # App Platform may run Node with a low default heap limit in containers.
+      # Force a higher heap ceiling (in MB) to prevent ~512MB OOMs.
+      - key: NODE_OPTIONS
+        scope: RUN_TIME
+        value: "--max-old-space-size=1536"
 
       # Gateway auth token (required)
       - key: OPENCLAW_GATEWAY_TOKEN
