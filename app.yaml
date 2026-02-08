@@ -14,8 +14,9 @@ workers:
       branch: main
       deploy_on_push: false
     # IMPORTANT: build context must be the image folder (Dockerfile uses relative COPY paths).
+    # DO interprets dockerfile_path relative to the repo root, not source_dir.
     source_dir: openclaw-agent-image
-    dockerfile_path: Dockerfile
+    dockerfile_path: openclaw-agent-image/Dockerfile
     instance_size_slug: apps-s-1vcpu-1gb-fixed
     instance_count: 1
     envs:
