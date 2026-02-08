@@ -5,18 +5,16 @@ region: syd
 # - Use as a Worker (no inbound HTTP required for Telegram long-polling).
 # - Instance size pinned to 1cpu/2gb.
 #
-# Deploy from a pre-built image in DOCR (DigitalOcean Container Registry).
-# Build/push via CI (see .github/workflows/build-push.yml), then App Platform pulls.
+# Deploy from a pre-built image in GHCR (GitHub Container Registry).
+# Build/push via CI (see .github/workflows/ghcr-build-push.yml), then App Platform pulls.
+# GHCR images are public — no registry credentials needed.
 
 workers:
   - name: openclaw-agent
     image:
-      registry_type: DOCR
-      # DOCR registry name.
-      # Full image: registry.digitalocean.com/openclaw/openclaw-agent:latest
-      registry: openclaw
-      # Repository name inside the registry (not including the registry prefix).
-      repository: openclaw-agent
+      registry_type: DOCKER_HUB
+      registry: ghcr.io
+      repository: bikramkgupta/openclaw-agent
       tag: latest
     instance_size_slug: apps-s-1vcpu-2gb
     instance_count: 1
