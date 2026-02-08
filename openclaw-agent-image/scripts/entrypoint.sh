@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+log() { echo -e "${GREEN}[openclaw-agent]${NC} $1"; }
+warn() { echo -e "${YELLOW}[openclaw-agent]${NC} $1"; }
+error() { echo -e "${RED}[openclaw-agent]${NC} $1" >&2; }
+
+require_env() {
+  local name="$1"
+  if [[ -z "${!name:-}" ]]; then
+    error "Missing required env var: ${name}"
+    exit 1
+  fi
+}
+
+shutdown() {
+  log "Shutdown signal received"
+
+  if [[ -n "${BACKUP_PID:-}" ]] && kill -0 "${BACKUP_PID}" 2>/dev/null; then
+    kill "${BACKUP_PID}" 2>/dev/null || true
+  fi
+
+  log "Final backup..."
+  /usr/local/bin/openclaw-backup --final || warn "Final backup failed (continuing shutdown)"
+
+  if [[ -n "${GATEWAY_PID:-}" ]] && kill -0 "${GATEWAY_PID}" 2>/dev/null; then
+    kill -TERM "${GATEWAY_PID}" 2>/dev/null || true
+    wait "${GATEWAY_PID}" 2>/dev/null || true
+  fi
+
+  log "Shutdown complete"
+  exit 0
+}
+
+trap shutdown SIGTERM SIGINT SIGHUP
+
+main() {
+  # Defaults (keep env var names aligned with OpenClaw docs)
+  export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-/home/openclaw/.openclaw}"
+  export OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-/run/openclaw/openclaw.json}"
+  export OPENCLAW_GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
+  export OPENCLAW_GATEWAY_BIND="${OPENCLAW_GATEWAY_BIND:-lan}"
+
+  # V0 required inputs
+  require_env "AGENT_ID"
+  require_env "OPENCLAW_GATEWAY_TOKEN"
+
+  # Telegram-first contract (V0 is Telegram-only)
+  require_env "TELEGRAM_BOT_TOKEN"
+
+  # Providers (Gradient required; OpenAI/Anthropic optional)
+  require_env "GRADIENT_API_KEY"
+
+  # Object store (Spaces in prod, RustFS locally)
+  require_env "SPACES_BUCKET"
+  require_env "SPACES_REGION"
+  require_env "SPACES_ACCESS_KEY_ID"
+  require_env "SPACES_SECRET_ACCESS_KEY"
+
+  # Never leak AWS_* creds into the gateway process.
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_DEFAULT_REGION AWS_REGION AWS_PROFILE || true
+
+  log "Booting agent: ${AGENT_ID}"
+
+  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials"
+  mkdir -p "$(dirname "${OPENCLAW_CONFIG_PATH}")"
+
+  # 1) Render base config (template -> OPENCLAW_CONFIG_PATH)
+  envsubst < /etc/openclaw/openclaw.base.json > "${OPENCLAW_CONFIG_PATH}"
+  chmod 600 "${OPENCLAW_CONFIG_PATH}" || true
+
+  # 2) Apply providers + channel config (writes OPENCLAW_CONFIG_PATH)
+  /usr/local/bin/openclaw-setup-providers
+  /usr/local/bin/openclaw-setup-channels
+
+  # 3) Restore workspace + runtime state from object store
+  /usr/local/bin/openclaw-restore || warn "Restore failed (starting fresh)"
+
+  # 4) Run migrations/repair (safe, idempotent)
+  if openclaw doctor --repair --non-interactive; then
+    log "Doctor completed"
+  else
+    warn "Doctor reported warnings (continuing)"
+  fi
+
+  # 5) Start gateway
+  log "Starting gateway on port ${OPENCLAW_GATEWAY_PORT} (bind=${OPENCLAW_GATEWAY_BIND})"
+  openclaw gateway \
+    --allow-unconfigured \
+    --port "${OPENCLAW_GATEWAY_PORT}" \
+    --bind "${OPENCLAW_GATEWAY_BIND}" \
+    --token "${OPENCLAW_GATEWAY_TOKEN}" &
+  GATEWAY_PID=$!
+
+  # 6) Start backup watcher (selective, debounced)
+  /usr/local/bin/openclaw-backup &
+  BACKUP_PID=$!
+
+  log "Ready"
+  wait "${GATEWAY_PID}"
+}
+
+main "$@"
+

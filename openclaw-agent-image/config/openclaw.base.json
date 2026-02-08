@@ -1,0 +1,25 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "lan",
+    "controlUi": { "enabled": false }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {}
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "${OPENCLAW_STATE_DIR}/workspace",
+      "sandbox": { "mode": "off" }
+    },
+    "list": []
+  },
+  "tools": {
+    "elevated": { "enabled": false }
+  },
+  "session": { "dmScope": "per-channel-peer" },
+  "channels": {},
+  "browser": { "enabled": false }
+}
+

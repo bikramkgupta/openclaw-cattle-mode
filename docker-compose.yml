@@ -1,0 +1,95 @@
+services:
+  rustfs-init:
+    image: busybox:1.36
+    command: ["sh", "-c", "mkdir -p /data && chown -R 10001:10001 /data"]
+    volumes:
+      - rustfs-data:/data
+
+  rustfs:
+    # RustFS (S3-compatible local object store) for V0 dev restore/backup
+    image: ${RUSTFS_IMAGE:-rustfs/rustfs:1.0.0-alpha.82}
+    depends_on:
+      rustfs-init:
+        condition: service_completed_successfully
+    environment:
+      RUSTFS_ACCESS_KEY: ${SPACES_ACCESS_KEY_ID:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${SPACES_SECRET_ACCESS_KEY:-rustfsadmin}
+    command: ["--console-enable", "/data"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - rustfs-data:/data
+
+  rustfs-bucket:
+    image: amazon/aws-cli:2.15.57
+    depends_on:
+      - rustfs
+    environment:
+      AWS_ACCESS_KEY_ID: ${SPACES_ACCESS_KEY_ID:-rustfsadmin}
+      AWS_SECRET_ACCESS_KEY: ${SPACES_SECRET_ACCESS_KEY:-rustfsadmin}
+      AWS_DEFAULT_REGION: ${SPACES_REGION:-us-east-1}
+      AWS_EC2_METADATA_DISABLED: "true"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        endpoint="$${S3_ENDPOINT_URL:-http://rustfs:9000}"
+        bucket="$${SPACES_BUCKET:-openclaw-dev}"
+        for i in $(seq 1 60); do
+          if aws --endpoint-url "$$endpoint" s3 ls >/dev/null 2>&1; then
+            # If bucket already exists, we're done.
+            if aws --endpoint-url "$$endpoint" s3 ls "s3://$$bucket/" >/dev/null 2>&1; then
+              exit 0
+            fi
+            # Otherwise attempt to create it; if it succeeds, we're done.
+            if aws --endpoint-url "$$endpoint" s3 mb "s3://$$bucket" >/dev/null 2>&1; then
+              exit 0
+            fi
+          fi
+          sleep 1
+        done
+        echo "rustfs endpoint not ready: $$endpoint" >&2
+        exit 1
+
+  openclaw-agent:
+    build:
+      context: ./openclaw-agent-image
+    depends_on:
+      rustfs-bucket:
+        condition: service_completed_successfully
+    environment:
+      # Telegram-first (required)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWFROM: ${TELEGRAM_ALLOWFROM:-}
+
+      # Providers
+      GRADIENT_API_KEY: ${GRADIENT_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AGENT_DEFAULT_MODEL: ${AGENT_DEFAULT_MODEL:-}
+
+      # Identity + gateway auth
+      AGENT_ID: ${AGENT_ID:-agent-dev}
+      AGENT_NAME: ${AGENT_NAME:-OpenClaw Dev Agent}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+
+      # Object store (RustFS local)
+      SPACES_BUCKET: ${SPACES_BUCKET:-openclaw-dev}
+      SPACES_REGION: ${SPACES_REGION:-us-east-1}
+      SPACES_ACCESS_KEY_ID: ${SPACES_ACCESS_KEY_ID:-rustfsadmin}
+      SPACES_SECRET_ACCESS_KEY: ${SPACES_SECRET_ACCESS_KEY:-rustfsadmin}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://rustfs:9000}
+
+      # Runtime paths (authoritative)
+      OPENCLAW_STATE_DIR: /home/openclaw/.openclaw
+      OPENCLAW_CONFIG_PATH: /run/openclaw/openclaw.json
+
+    tmpfs:
+      - /run/openclaw:mode=0700,uid=10001,gid=10001
+    ports:
+      - "18789:18789"
+    restart: unless-stopped
+
+volumes:
+  rustfs-data:
