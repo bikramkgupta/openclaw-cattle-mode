@@ -16,7 +16,7 @@ workers:
       # Full image: registry.digitalocean.com/openclaw/openclaw-agent:latest
       repository: openclaw/openclaw-agent
       tag: latest
-    instance_size_slug: apps-s-1vcpu-1gb-fixed
+    instance_size_slug: apps-s-1vcpu-2gb
     instance_count: 1
     envs:
       # Agent identity
