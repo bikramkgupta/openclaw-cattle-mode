@@ -3,7 +3,7 @@ region: syd
 
 # V0 scaffold for DigitalOcean App Platform.
 # - Use as a Worker (no inbound HTTP required for Telegram long-polling).
-# - Instance size pinned to 1cpu/1gb as requested.
+# - Instance size pinned to 1cpu/2gb.
 #
 # Deploy from a pre-built image in DOCR (DigitalOcean Container Registry).
 # Build/push via CI (see .github/workflows/build-push.yml), then App Platform pulls.
@@ -22,10 +22,10 @@ workers:
       # Agent identity
       - key: AGENT_ID
         scope: RUN_TIME
-        value: "agent-dev"
+        value: "agent-cattle-mode"
       - key: AGENT_NAME
         scope: RUN_TIME
-        value: "OpenClaw Dev Agent"
+        value: "OpenClaw Cattle Mode"
 
       # Telegram (v0: required)
       - key: TELEGRAM_BOT_TOKEN
@@ -38,12 +38,6 @@ workers:
 
       # Providers
       - key: GRADIENT_API_KEY
-        scope: RUN_TIME
-        type: SECRET
-      - key: OPENAI_API_KEY
-        scope: RUN_TIME
-        type: SECRET
-      - key: ANTHROPIC_API_KEY
         scope: RUN_TIME
         type: SECRET
       - key: AGENT_DEFAULT_MODEL
