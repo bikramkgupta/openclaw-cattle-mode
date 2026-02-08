@@ -5,15 +5,16 @@ region: syd
 # - Use as a Worker (no inbound HTTP required for Telegram long-polling).
 # - Instance size pinned to 1cpu/1gb as requested.
 #
-# NOTE: This file is a scaffold only; you are not deploying yet.
+# NOTE: This uses a GitHub Dockerfile build (no pre-built DOCR image required).
 
 workers:
   - name: openclaw-agent
-    # Replace this with your DOCR repository once you publish the image.
-    image:
-      registry_type: DOCR
-      repository: openclaw/openclaw-agent
-      tag: latest
+    github:
+      repo: bikramkgupta/openclaw-cattle-mode
+      branch: main
+      deploy_on_push: false
+    source_dir: /
+    dockerfile_path: openclaw-agent-image/Dockerfile
     instance_size_slug: apps-s-1vcpu-1gb-fixed
     instance_count: 1
     envs:
@@ -55,10 +56,10 @@ workers:
       # Object store (DigitalOcean Spaces)
       - key: SPACES_BUCKET
         scope: RUN_TIME
-        value: "REPLACE_ME_BUCKET"
+        value: "openclaw-cattle-mode-syd1"
       - key: SPACES_REGION
         scope: RUN_TIME
-        value: "REPLACE_ME_REGION"
+        value: "syd1"
       - key: SPACES_ACCESS_KEY_ID
         scope: RUN_TIME
         type: SECRET
