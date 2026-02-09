@@ -139,7 +139,9 @@ Changes take effect on the next container restart or redeploy.
 
    Run the **"Build and Push to GHCR"** workflow in GitHub Actions.
 
-2. Redeploy:
+2. Set the deploy tag in `.env.remote`: `IMAGE_TAG=2026.2.6` (or the version you built). This controls which image tag App Platform pulls.
+
+3. Redeploy:
 
    ```bash
    bash scripts/deploy.sh
@@ -156,11 +158,21 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full rules on env files and deploymen
 
 ## Testing
 
-```bash
-# Test backup/restore cycle
-bash scripts/test-backup.sh
+All tests except the deploy-spec check run **locally** (Docker + Docker Compose). CI only runs the deploy-spec test (no Docker in GitHub Actions).
 
-# Test version compatibility
+| Test | Command | Where |
+|------|---------|--------|
+| Container boot (smoke) | `bash scripts/smoke-boot.sh` | Local |
+| Backup and restore | `bash scripts/test-backup.sh` | Local |
+| Deploy spec render | `bash scripts/test-deploy-spec.sh` | Local or CI |
+| Version compatibility | `bash scripts/test-versions.sh` | Local |
+
+Run all locally (in order):
+
+```bash
+bash scripts/smoke-boot.sh && \
+bash scripts/test-deploy-spec.sh && \
+bash scripts/test-backup.sh && \
 bash scripts/test-versions.sh
 ```
 

@@ -1,4 +1,5 @@
 BLOG.md
+SOCIAL.md
 VULN-RESEARCH.md
 REFERENCE-openclaw-*
 .DS_Store
@@ -7,3 +8,5 @@ REFERENCE-openclaw-*
 .env.docker
 .env.remote
 .app-spec-rendered.yaml
+.app-spec-rendered-test.yaml
+asset-list.md

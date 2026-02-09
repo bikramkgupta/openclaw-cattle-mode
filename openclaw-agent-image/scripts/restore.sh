@@ -61,10 +61,10 @@ restore_dir() {
 
 main() {
   require_env "AGENT_ID"
-  require_env "SPACES_BUCKET"
-  require_env "SPACES_REGION"
-  require_env "SPACES_ACCESS_KEY_ID"
-  require_env "SPACES_SECRET_ACCESS_KEY"
+  if [[ -z "${SPACES_BUCKET:-}" || -z "${SPACES_REGION:-}" || -z "${SPACES_ACCESS_KEY_ID:-}" || -z "${SPACES_SECRET_ACCESS_KEY:-}" ]]; then
+    warn "Spaces not configured (missing SPACES_*); skipping restore (starting fresh)"
+    return 0
+  fi
 
   # Export AWS_* ONLY in this process (do not leak into gateway)
   export AWS_ACCESS_KEY_ID="${SPACES_ACCESS_KEY_ID}"

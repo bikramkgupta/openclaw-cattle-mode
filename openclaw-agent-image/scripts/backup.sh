@@ -122,12 +122,14 @@ watch_polling() {
 }
 
 main() {
+  if [[ -z "${SPACES_BUCKET:-}" || -z "${SPACES_REGION:-}" || -z "${SPACES_ACCESS_KEY_ID:-}" || -z "${SPACES_SECRET_ACCESS_KEY:-}" ]]; then
+    warn "Spaces not configured (missing SPACES_*); skipping backup"
+    return 0
+  fi
+
+  require_env "AGENT_ID"
+
   if [[ "${1:-}" == "--final" ]]; then
-    require_env "AGENT_ID"
-    require_env "SPACES_BUCKET"
-    require_env "SPACES_REGION"
-    require_env "SPACES_ACCESS_KEY_ID"
-    require_env "SPACES_SECRET_ACCESS_KEY"
     export AWS_ACCESS_KEY_ID="${SPACES_ACCESS_KEY_ID}"
     export AWS_SECRET_ACCESS_KEY="${SPACES_SECRET_ACCESS_KEY}"
     export AWS_DEFAULT_REGION="${SPACES_REGION}"
@@ -136,12 +138,6 @@ main() {
     final_backup
     return 0
   fi
-
-  require_env "AGENT_ID"
-  require_env "SPACES_BUCKET"
-  require_env "SPACES_REGION"
-  require_env "SPACES_ACCESS_KEY_ID"
-  require_env "SPACES_SECRET_ACCESS_KEY"
 
   # Export AWS_* ONLY in this process (do not leak into gateway)
   export AWS_ACCESS_KEY_ID="${SPACES_ACCESS_KEY_ID}"

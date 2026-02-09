@@ -125,19 +125,26 @@ gh workflow run ghcr-build-push.yml -f openclaw_version=2026.2.6
 
 This pushes to `ghcr.io/bikramkgupta/openclaw-agent` with tags: `latest`, `<version>`, `<sha>`.
 
-### Full CI/CD deploy (future)
+### Integration workflow (container test + optional deploy)
 
-To deploy from GitHub Actions, all env vars from `.env.remote` must be stored as GitHub Secrets:
+The **Integration** workflow (`.github/workflows/integration.yml`) runs on push/PR and optionally on manual trigger:
 
-```bash
-gh secret set TELEGRAM_BOT_TOKEN --body "<value>"
-gh secret set GRADIENT_API_KEY --body "<value>"
-gh secret set OPENCLAW_GATEWAY_TOKEN --body "<value>"
-gh secret set SPACES_ACCESS_KEY_ID --body "<value>"
-gh secret set SPACES_SECRET_ACCESS_KEY --body "<value>"
-```
+1. **deploy-spec** — Renders `app.yaml` with envsubst and checks for unsubstituted variables (no secrets needed).
+2. **container-test** — Builds and runs the stack with Docker Compose. Creates `.env.docker` from GitHub Secrets:
+   - **Required:** `AGENT_ID`, `OPENCLAW_GATEWAY_TOKEN` (container will not boot without these).
+   - **Optional:** `TELEGRAM_BOT_TOKEN`, `GRADIENT_API_KEY`. If both are set, the job runs **full E2E** (`test-backup.sh`: backup/restore against local RustFS). Otherwise it runs **smoke only** (`smoke-boot.sh`: container boots and health check passes).
+3. **deploy** — Runs only when you trigger the workflow manually and check **Run deploy to App Platform**. Requires `DIGITALOCEAN_TOKEN` and every variable from `.env.remote` as GitHub Secrets (same list as below). Uses `doctl` to update the app spec and create a deployment, then waits for ACTIVE.
 
-A deploy workflow would: checkout → envsubst app.yaml → doctl apps update → doctl apps create-deployment.
+**Secrets for container-test (minimum for smoke):**
+
+| Secret | Required for smoke | Required for full E2E |
+|--------|--------------------|------------------------|
+| `AGENT_ID` | Yes | Yes |
+| `OPENCLAW_GATEWAY_TOKEN` | Yes | Yes |
+| `TELEGRAM_BOT_TOKEN` | No | Yes |
+| `GRADIENT_API_KEY` | No | Yes |
+
+**Secrets for deploy job:** `DIGITALOCEAN_TOKEN` plus all `.env.remote` vars (e.g. `AGENT_ID`, `AGENT_NAME`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWFROM`, `GRADIENT_API_KEY`, `AGENT_DEFAULT_MODEL`, `NODE_OPTIONS`, `OPENCLAW_GATEWAY_TOKEN`, `SPACES_BUCKET`, `SPACES_REGION`, `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, and optionally `IMAGE_TAG`).
 
 ---
 
@@ -166,9 +173,10 @@ image:
   registry_type: GHCR
   registry: ghcr.io
   repository: bikramkgupta/openclaw-agent
-  tag: latest
+  tag: ${IMAGE_TAG}
 ```
 
+- The tag is set by `IMAGE_TAG` in `.env.remote` (e.g. `2026.2.6`). Use a pinned tag so deploys don't pull `latest` unexpectedly.
 - `registry_type: GHCR` is required — it handles GHCR's token-exchange auth.
 - `DOCKER_HUB` does **not** work for GHCR images.
 - For public GHCR images, no `registry_credentials` needed.
@@ -200,5 +208,7 @@ When adding a new env var, update **all** of these:
 | Build image (DOCR) | `gh workflow run build-push.yml` |
 | Check deploy logs | `doctl apps logs <app-id> --type deploy` |
 | Check runtime logs | `doctl apps logs <app-id> --type run` |
-| Test version compat | `bash scripts/test-versions.sh` |
+| Test deploy spec (no Docker) | `bash scripts/test-deploy-spec.sh` |
+| Test smoke boot | `bash scripts/smoke-boot.sh` |
 | Test backup/restore | `bash scripts/test-backup.sh` |
+| Test version compat | `bash scripts/test-versions.sh` |

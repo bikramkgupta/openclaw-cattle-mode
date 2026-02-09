@@ -20,8 +20,8 @@ ensure_file() {
 add_telegram() {
   local token="${TELEGRAM_BOT_TOKEN:-}"
   if [[ -z "${token}" ]]; then
-    echo "TELEGRAM_BOT_TOKEN is required for V0" >&2
-    exit 1
+    warn "TELEGRAM_BOT_TOKEN not set; skipping Telegram channel"
+    return 0
   fi
 
   local allowlist="${TELEGRAM_ALLOWFROM:-}"

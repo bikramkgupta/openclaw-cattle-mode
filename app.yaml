@@ -18,7 +18,7 @@ workers:
       registry_type: GHCR
       registry: ghcr.io
       repository: bikramkgupta/openclaw-agent
-      tag: latest
+      tag: ${IMAGE_TAG}
     instance_size_slug: apps-s-1vcpu-2gb
     instance_count: 1
     envs:

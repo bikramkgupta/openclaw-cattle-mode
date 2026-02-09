@@ -46,21 +46,9 @@ main() {
   export OPENCLAW_GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
   export OPENCLAW_GATEWAY_BIND="${OPENCLAW_GATEWAY_BIND:-lan}"
 
-  # V0 required inputs
+  # Only these are required for the container to boot; rest are optional (less functional if missing).
   require_env "AGENT_ID"
   require_env "OPENCLAW_GATEWAY_TOKEN"
-
-  # Telegram-first contract (V0 is Telegram-only)
-  require_env "TELEGRAM_BOT_TOKEN"
-
-  # Providers (Gradient required; OpenAI/Anthropic optional)
-  require_env "GRADIENT_API_KEY"
-
-  # Object store (Spaces in prod, RustFS locally)
-  require_env "SPACES_BUCKET"
-  require_env "SPACES_REGION"
-  require_env "SPACES_ACCESS_KEY_ID"
-  require_env "SPACES_SECRET_ACCESS_KEY"
 
   # Never leak AWS_* creds into the gateway process.
   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_DEFAULT_REGION AWS_REGION AWS_PROFILE || true

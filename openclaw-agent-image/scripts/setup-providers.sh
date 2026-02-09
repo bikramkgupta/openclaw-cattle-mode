@@ -19,40 +19,40 @@ ensure_file() {
 
 add_gradient_provider() {
   if [[ -z "${GRADIENT_API_KEY:-}" ]]; then
-    echo "GRADIENT_API_KEY is required for V0" >&2
-    exit 1
+    warn "GRADIENT_API_KEY not set; skipping Gradient provider (agent will have no default model unless OpenAI/Anthropic set)"
+    return 0
   fi
 
-log "Configuring Gradient (DigitalOcean) provider"
+  log "Configuring Gradient (DigitalOcean) provider"
 
-local tmp
-tmp="$(mktemp)"
+  local tmp
+  tmp="$(mktemp)"
 
-jq --arg key "${GRADIENT_API_KEY}" '
-  .models.mode = "merge" |
-  .models.providers.gradient = {
-    "baseUrl": "https://inference.do-ai.run/v1",
-    "apiKey": $key,
-    "api": "openai-completions",
-    "models": [
-      {
-        "id": "anthropic-claude-opus-4.6",
-        "name": "Anthropic Claude Opus 4.6",
-        "reasoning": false,
-        "compat": { "maxTokensField": "max_tokens", "supportsStore": false },
-        "input": ["text"],
-        "contextWindow": 200000,
-        "maxTokens": 8192
-      }
-    ]
-  }
-' "${CONFIG_FILE}" > "${tmp}" && mv "${tmp}" "${CONFIG_FILE}"
+  jq --arg key "${GRADIENT_API_KEY}" '
+    .models.mode = "merge" |
+    .models.providers.gradient = {
+      "baseUrl": "https://inference.do-ai.run/v1",
+      "apiKey": $key,
+      "api": "openai-completions",
+      "models": [
+        {
+          "id": "anthropic-claude-opus-4.6",
+          "name": "Anthropic Claude Opus 4.6",
+          "reasoning": false,
+          "compat": { "maxTokensField": "max_tokens", "supportsStore": false },
+          "input": ["text"],
+          "contextWindow": 200000,
+          "maxTokens": 8192
+        }
+      ]
+    }
+  ' "${CONFIG_FILE}" > "${tmp}" && mv "${tmp}" "${CONFIG_FILE}"
 
-tmp="$(mktemp)"
-jq '
-  .agents.defaults.models //= {} |
-  .agents.defaults.models["gradient/anthropic-claude-opus-4.6"] = { "params": { "maxTokens": 8192 } }
-' "${CONFIG_FILE}" > "${tmp}" && mv "${tmp}" "${CONFIG_FILE}"
+  tmp="$(mktemp)"
+  jq '
+    .agents.defaults.models //= {} |
+    .agents.defaults.models["gradient/anthropic-claude-opus-4.6"] = { "params": { "maxTokens": 8192 } }
+  ' "${CONFIG_FILE}" > "${tmp}" && mv "${tmp}" "${CONFIG_FILE}"
 }
 
 add_anthropic_provider() {
@@ -100,11 +100,11 @@ set_default_model() {
     return 0
   fi
 
-local tmp
-tmp="$(mktemp)"
-jq --arg model "${model}" '
-  .agents.defaults.model.primary = $model
-' "${CONFIG_FILE}" > "${tmp}" && mv "${tmp}" "${CONFIG_FILE}"
+  local tmp
+  tmp="$(mktemp)"
+  jq --arg model "${model}" '
+    .agents.defaults.model.primary = $model
+  ' "${CONFIG_FILE}" > "${tmp}" && mv "${tmp}" "${CONFIG_FILE}"
 }
 
 main() {
