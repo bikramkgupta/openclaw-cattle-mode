@@ -13,6 +13,9 @@ error() { echo -e "${RED}[backup]${NC} $1" >&2; }
 OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-/home/openclaw/.openclaw}"
 S3_ENDPOINT_URL="${S3_ENDPOINT_URL:-}"
 
+# Written by restore.sh on successful restore; tells us --delete is safe.
+RESTORE_MARKER="${OPENCLAW_STATE_DIR}/.restore-complete"
+
 DEBOUNCE_SECONDS="${DEBOUNCE_SECONDS:-5}"
 POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-60}"
 
@@ -43,8 +46,15 @@ sync_item() {
   mapfile -d '' -t args < <(endpoint_url_arg)
 
   if [[ -d "${local_path}" ]]; then
-    aws s3 sync "${local_path}" "${remote_path}/" "${args[@]}" --delete --quiet 2>/dev/null || \
-      warn "Failed to sync dir: ${local_rel}"
+    # Only --delete when restore completed fully; otherwise additive-only
+    # to avoid wiping S3 state that wasn't restored.
+    if [[ -f "${RESTORE_MARKER}" ]]; then
+      aws s3 sync "${local_path}" "${remote_path}/" "${args[@]}" --delete --quiet 2>/dev/null || \
+        warn "Failed to sync dir: ${local_rel}"
+    else
+      aws s3 sync "${local_path}" "${remote_path}/" "${args[@]}" --quiet 2>/dev/null || \
+        warn "Failed to sync dir: ${local_rel}"
+    fi
   elif [[ -f "${local_path}" ]]; then
     aws s3 cp "${local_path}" "${remote_path}" "${args[@]}" --quiet 2>/dev/null || \
       warn "Failed to sync file: ${local_rel}"

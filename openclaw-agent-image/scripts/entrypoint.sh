@@ -67,7 +67,7 @@ main() {
 
   log "Booting agent: ${AGENT_ID}"
 
-  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials"
+  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials" "${OPENCLAW_STATE_DIR}/agents"
   mkdir -p "$(dirname "${OPENCLAW_CONFIG_PATH}")"
 
   # 1) Render base config (template -> OPENCLAW_CONFIG_PATH)

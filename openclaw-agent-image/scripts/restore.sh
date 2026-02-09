@@ -53,7 +53,10 @@ restore_dir() {
   mkdir -p "${local_path}"
   local -a args=()
   mapfile -d '' -t args < <(endpoint_url_arg)
-  aws s3 sync "${S3_PATH}/${remote_rel}/" "${local_path}" "${args[@]}" --quiet 2>/dev/null
+  if ! aws s3 sync "${S3_PATH}/${remote_rel}/" "${local_path}" "${args[@]}" --quiet 2>/dev/null; then
+    warn "Sync failed for: ${remote_rel}"
+    return 2
+  fi
 }
 
 main() {
@@ -84,17 +87,33 @@ main() {
   # On first boot S3 is empty; seed files from the image apply.
   # On subsequent boots S3 wins (agent state is the source of truth).
   local restored=0
+  local failed=0
+  local rc
   for dir in workspace agents credentials; do
-    if restore_dir "${dir}"; then
+    rc=0
+    restore_dir "${dir}" || rc=$?
+    if [[ "${rc}" -eq 0 ]]; then
       log "Restored: ${dir}/"
       ((restored++))
+    elif [[ "${rc}" -eq 2 ]]; then
+      ((failed++))
     fi
+    # rc=1 means dir not in S3 (first boot) — skip silently
   done
 
-  if [[ "${restored}" -eq 0 ]]; then
+  if [[ "${restored}" -eq 0 && "${failed}" -eq 0 ]]; then
     log "No prior state in S3 (first boot — OpenClaw defaults will apply)"
+  elif [[ "${failed}" -gt 0 ]]; then
+    warn "Restore incomplete (${restored} ok, ${failed} failed)"
   else
     log "Restore complete (${restored} directories)"
+  fi
+
+  # Signal to backup watcher that restore fully completed.
+  # Without this marker, backup runs without --delete to avoid
+  # wiping S3 state that wasn't restored due to sync failures.
+  if [[ "${failed}" -eq 0 ]]; then
+    echo "$(date -u +%FT%TZ)" > "${OPENCLAW_STATE_DIR}/.restore-complete"
   fi
 }
 
