@@ -87,7 +87,7 @@ main() {
 
   log "Restoring from: ${S3_PATH}"
 
-  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials"
+  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials" "${OPENCLAW_STATE_DIR}/agents"
 
   if ! check_bucket_access; then
     warn "Cannot access bucket (starting fresh)"
@@ -118,6 +118,8 @@ main() {
   restore_dir "workspace/memory" || true
   restore_file "workspace/MEMORY.md" || true
   restore_dir "credentials" || true
+  # Agent state: sessions, auth profiles, model registry (all agentIds)
+  restore_dir "agents" || true
 
   log "Restore complete"
 }

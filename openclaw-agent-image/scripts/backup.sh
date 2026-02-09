@@ -56,6 +56,8 @@ backup_all() {
   sync_item "workspace/memory" "workspace/memory"
   sync_item "workspace/MEMORY.md" "workspace/MEMORY.md"
   sync_item "credentials" "credentials"
+  # Agent state: sessions, auth profiles, model registry (all agentIds)
+  sync_item "agents" "agents"
 }
 
 final_backup() {
@@ -72,6 +74,7 @@ watch_inotify() {
     inotifywait -r -q -e create,modify,delete,move \
       "${OPENCLAW_STATE_DIR}/workspace" \
       "${OPENCLAW_STATE_DIR}/credentials" \
+      "${OPENCLAW_STATE_DIR}/agents" \
       2>/dev/null || true
 
     local now
@@ -100,6 +103,9 @@ watch_polling() {
     fi
     if [[ -d "${OPENCLAW_STATE_DIR}/credentials" ]]; then
       cur+=$(find "${OPENCLAW_STATE_DIR}/credentials" -type f -exec stat -c '%Y%s' {} \; 2>/dev/null || true)
+    fi
+    if [[ -d "${OPENCLAW_STATE_DIR}/agents" ]]; then
+      cur+=$(find "${OPENCLAW_STATE_DIR}/agents" -type f -exec stat -c '%Y%s' {} \; 2>/dev/null || true)
     fi
 
     cur="$(echo -n "${cur}" | md5sum | cut -d' ' -f1)"
@@ -141,7 +147,7 @@ main() {
 
   S3_PATH="s3://${SPACES_BUCKET}/openclaw/${AGENT_ID}"
 
-  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials"
+  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials" "${OPENCLAW_STATE_DIR}/agents"
 
   log "Backing up runtime state to: ${S3_PATH}"
   backup_all
