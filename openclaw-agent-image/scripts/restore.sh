@@ -94,9 +94,9 @@ main() {
     restore_dir "${dir}" || rc=$?
     if [[ "${rc}" -eq 0 ]]; then
       log "Restored: ${dir}/"
-      ((restored++))
+      restored=$((restored + 1))
     elif [[ "${rc}" -eq 2 ]]; then
-      ((failed++))
+      failed=$((failed + 1))
     fi
     # rc=1 means dir not in S3 (first boot) — skip silently
   done
