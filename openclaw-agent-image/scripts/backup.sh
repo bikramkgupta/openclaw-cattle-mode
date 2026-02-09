@@ -52,12 +52,13 @@ sync_item() {
 }
 
 backup_all() {
-  # Runtime state only (do NOT sync customer-seeded workspace config files)
-  sync_item "workspace/memory" "workspace/memory"
-  sync_item "workspace/MEMORY.md" "workspace/MEMORY.md"
-  sync_item "credentials" "credentials"
-  # Agent state: sessions, auth profiles, model registry (all agentIds)
+  # S3 is the brain — back up all runtime state.
+  # workspace/  : AGENTS.md, SOUL.md, memory/, MEMORY.md, etc.
+  # agents/     : sessions, auth profiles, model registry (all agentIds)
+  # credentials/: OAuth tokens, API keys
+  sync_item "workspace" "workspace"
   sync_item "agents" "agents"
+  sync_item "credentials" "credentials"
 }
 
 final_backup() {
@@ -95,18 +96,11 @@ watch_polling() {
     sleep "${POLL_INTERVAL_SECONDS}"
 
     local cur=""
-    if [[ -d "${OPENCLAW_STATE_DIR}/workspace/memory" ]]; then
-      cur+=$(find "${OPENCLAW_STATE_DIR}/workspace/memory" -type f -exec stat -c '%Y%s' {} \; 2>/dev/null || true)
-    fi
-    if [[ -f "${OPENCLAW_STATE_DIR}/workspace/MEMORY.md" ]]; then
-      cur+=$(stat -c '%Y%s' "${OPENCLAW_STATE_DIR}/workspace/MEMORY.md" 2>/dev/null || true)
-    fi
-    if [[ -d "${OPENCLAW_STATE_DIR}/credentials" ]]; then
-      cur+=$(find "${OPENCLAW_STATE_DIR}/credentials" -type f -exec stat -c '%Y%s' {} \; 2>/dev/null || true)
-    fi
-    if [[ -d "${OPENCLAW_STATE_DIR}/agents" ]]; then
-      cur+=$(find "${OPENCLAW_STATE_DIR}/agents" -type f -exec stat -c '%Y%s' {} \; 2>/dev/null || true)
-    fi
+    for dir in workspace agents credentials; do
+      if [[ -d "${OPENCLAW_STATE_DIR}/${dir}" ]]; then
+        cur+=$(find "${OPENCLAW_STATE_DIR}/${dir}" -type f -exec stat -c '%Y%s' {} \; 2>/dev/null || true)
+      fi
+    done
 
     cur="$(echo -n "${cur}" | md5sum | cut -d' ' -f1)"
     if [[ "${cur}" != "${last}" ]]; then

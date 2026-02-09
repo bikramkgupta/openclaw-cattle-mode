@@ -42,20 +42,6 @@ remote_exists() {
   aws s3 ls "${S3_PATH}/${remote_rel}" "${args[@]}" &>/dev/null
 }
 
-restore_file() {
-  local remote_rel="$1"
-  local local_path="${OPENCLAW_STATE_DIR}/${remote_rel}"
-
-  if ! remote_exists "${remote_rel}"; then
-    return 1
-  fi
-
-  mkdir -p "$(dirname "${local_path}")"
-  local -a args=()
-  mapfile -d '' -t args < <(endpoint_url_arg)
-  aws s3 cp "${S3_PATH}/${remote_rel}" "${local_path}" "${args[@]}" --quiet 2>/dev/null
-}
-
 restore_dir() {
   local remote_rel="$1"
   local local_path="${OPENCLAW_STATE_DIR}/${remote_rel}"
@@ -87,41 +73,29 @@ main() {
 
   log "Restoring from: ${S3_PATH}"
 
-  mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials" "${OPENCLAW_STATE_DIR}/agents"
+  mkdir -p "${OPENCLAW_STATE_DIR}/workspace" "${OPENCLAW_STATE_DIR}/agents" "${OPENCLAW_STATE_DIR}/credentials"
 
   if ! check_bucket_access; then
     warn "Cannot access bucket (starting fresh)"
     return 0
   fi
 
-  # Customer-seeded workspace config files (restored if present; never overwritten by backup)
-  local cfg_count=0
-  for f in \
-    "workspace/AGENTS.md" \
-    "workspace/SOUL.md" \
-    "workspace/USER.md" \
-    "workspace/TOOLS.md" \
-    "workspace/IDENTITY.md" \
-    "workspace/HEARTBEAT.md"
-  do
-    if restore_file "${f}"; then
-      log "Restored config: ${f}"
-      ((cfg_count++))
+  # S3 is the brain — restore all runtime state.
+  # On first boot S3 is empty; seed files from the image apply.
+  # On subsequent boots S3 wins (agent state is the source of truth).
+  local restored=0
+  for dir in workspace agents credentials; do
+    if restore_dir "${dir}"; then
+      log "Restored: ${dir}/"
+      ((restored++))
     fi
   done
 
-  if [[ "${cfg_count}" -eq 0 ]]; then
-    log "No workspace config files found (OpenClaw defaults will apply)"
+  if [[ "${restored}" -eq 0 ]]; then
+    log "No prior state in S3 (first boot — OpenClaw defaults will apply)"
+  else
+    log "Restore complete (${restored} directories)"
   fi
-
-  # Runtime state (backed up + restored)
-  restore_dir "workspace/memory" || true
-  restore_file "workspace/MEMORY.md" || true
-  restore_dir "credentials" || true
-  # Agent state: sessions, auth profiles, model registry (all agentIds)
-  restore_dir "agents" || true
-
-  log "Restore complete"
 }
 
 main "$@"
