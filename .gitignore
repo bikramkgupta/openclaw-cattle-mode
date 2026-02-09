@@ -6,3 +6,4 @@ REFERENCE-openclaw-*
 .env.local
 .env.docker
 .env.remote
+.app-spec-rendered.yaml

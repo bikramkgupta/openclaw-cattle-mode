@@ -7,12 +7,15 @@ region: syd
 #
 # Deploy from a pre-built image in GHCR (GitHub Container Registry).
 # Build/push via CI (see .github/workflows/ghcr-build-push.yml), then App Platform pulls.
-# GHCR images are public — no registry credentials needed.
+# registry_type: GHCR handles GHCR's token-exchange auth automatically.
+#
+# Env vars use ${VAR} placeholders — substituted from .env.remote by scripts/deploy.sh.
+# Do NOT deploy this file directly; use: bash scripts/deploy.sh
 
 workers:
   - name: openclaw-agent
     image:
-      registry_type: DOCKER_HUB
+      registry_type: GHCR
       registry: ghcr.io
       repository: bikramkgupta/openclaw-agent
       tag: latest
@@ -22,50 +25,47 @@ workers:
       # Agent identity
       - key: AGENT_ID
         scope: RUN_TIME
-        value: "agent-cattle-mode"
+        value: "${AGENT_ID}"
       - key: AGENT_NAME
         scope: RUN_TIME
-        value: "OpenClaw Cattle Mode"
+        value: "${AGENT_NAME}"
 
-      # Telegram (v0: required)
+      # Telegram
       - key: TELEGRAM_BOT_TOKEN
         scope: RUN_TIME
-        type: SECRET
+        value: "${TELEGRAM_BOT_TOKEN}"
       - key: TELEGRAM_ALLOWFROM
         scope: RUN_TIME
-        # Comma-separated Telegram user IDs. If empty: pairing mode.
-        value: "6944791786"
+        value: "${TELEGRAM_ALLOWFROM}"
 
       # Providers
       - key: GRADIENT_API_KEY
         scope: RUN_TIME
-        type: SECRET
+        value: "${GRADIENT_API_KEY}"
       - key: AGENT_DEFAULT_MODEL
         scope: RUN_TIME
-        value: ""
+        value: "${AGENT_DEFAULT_MODEL}"
 
-      # Node/V8 memory:
-      # App Platform may run Node with a low default heap limit in containers.
-      # Force a higher heap ceiling (in MB) to prevent ~512MB OOMs.
+      # Node/V8 memory
       - key: NODE_OPTIONS
         scope: RUN_TIME
-        value: "--max-old-space-size=1536"
+        value: "${NODE_OPTIONS}"
 
-      # Gateway auth token (required)
+      # Gateway auth token
       - key: OPENCLAW_GATEWAY_TOKEN
         scope: RUN_TIME
-        type: SECRET
+        value: "${OPENCLAW_GATEWAY_TOKEN}"
 
       # Object store (DigitalOcean Spaces)
       - key: SPACES_BUCKET
         scope: RUN_TIME
-        value: "openclaw-cattle-mode-syd1"
+        value: "${SPACES_BUCKET}"
       - key: SPACES_REGION
         scope: RUN_TIME
-        value: "syd1"
+        value: "${SPACES_REGION}"
       - key: SPACES_ACCESS_KEY_ID
         scope: RUN_TIME
-        type: SECRET
+        value: "${SPACES_ACCESS_KEY_ID}"
       - key: SPACES_SECRET_ACCESS_KEY
         scope: RUN_TIME
-        type: SECRET
+        value: "${SPACES_SECRET_ACCESS_KEY}"
