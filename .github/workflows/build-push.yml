@@ -2,6 +2,11 @@ name: Build and Push to DOCR
 
 on:
   workflow_dispatch:
+    inputs:
+      openclaw_version:
+        description: "OpenClaw version to install (e.g. 2026.2.6)"
+        required: false
+        default: "2026.2.6"
 
 env:
   REGISTRY: registry.digitalocean.com
@@ -38,6 +43,7 @@ jobs:
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ inputs.openclaw_version }}
 
       - name: Build and push openclaw-agent image
         uses: docker/build-push-action@v5
@@ -47,6 +53,8 @@ jobs:
           push: true
           tags: ${{ steps.meta-agent.outputs.tags }}
           labels: ${{ steps.meta-agent.outputs.labels }}
+          build-args: |
+            OPENCLAW_VERSION=${{ inputs.openclaw_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -54,7 +62,9 @@ jobs:
         run: |
           echo "## Images pushed to DOCR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**openclaw-agent:**" >> $GITHUB_STEP_SUMMARY
+          echo "**OpenClaw version:** \`${{ inputs.openclaw_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta-agent.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

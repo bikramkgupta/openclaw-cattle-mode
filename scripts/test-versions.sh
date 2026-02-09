@@ -19,8 +19,18 @@ NC='\033[0m'
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-VERSIONS=("2026.2.1" "2026.2.2" "2026.2.3" "2026.2.6")
-declare -A RESULTS
+VERSIONS="2026.2.1 2026.2.2 2026.2.3 2026.2.6"
+
+# Parallel arrays for results (bash 3 compatible)
+RESULT_VERSIONS=""
+RESULT_STATUSES=""
+RESULT_NOTES=""
+
+add_result() {
+  RESULT_VERSIONS="${RESULT_VERSIONS}${1}|"
+  RESULT_STATUSES="${RESULT_STATUSES}${2}|"
+  RESULT_NOTES="${RESULT_NOTES}${3}|"
+}
 
 log()  { echo -e "${GREEN}[version-test]${NC} $1"; }
 warn() { echo -e "${YELLOW}[version-test]${NC} $1"; }
@@ -59,7 +69,7 @@ test_version() {
   log "Building image with OPENCLAW_VERSION=${version}..."
   if ! dc build ${NO_CACHE} --build-arg "OPENCLAW_VERSION=${version}" openclaw-agent 2>&1; then
     notes="build failed"
-    RESULTS["${version}"]="${status}|${notes}"
+    add_result "$version" "$status" "$notes"
     return
   fi
 
@@ -84,30 +94,30 @@ test_version() {
     # Capture logs for debugging
     log "Agent logs (last 30 lines):"
     dc logs --tail 30 openclaw-agent 2>&1 || true
-    RESULTS["${version}"]="${status}|${notes}"
+    add_result "$version" "$status" "$notes"
     dc down -v 2>/dev/null || true
     return
   fi
 
-  # Check entrypoint log markers
+  # Check entrypoint log markers (strip ANSI escape codes for reliable grep)
   local logs
-  logs=$(dc logs openclaw-agent 2>&1 || true)
+  logs=$(dc logs openclaw-agent 2>&1 | sed 's/\x1b\[[0-9;]*m//g' || true)
 
   local boot_ok=false
   local provider_ok=false
   local doctor_ok=false
   local ready_ok=false
 
-  if echo "$logs" | grep -q "\[openclaw-agent\] Booting agent:"; then
+  if echo "$logs" | grep -q "Booting agent:"; then
     boot_ok=true
   fi
-  if echo "$logs" | grep -q "\[providers\] Provider setup complete"; then
+  if echo "$logs" | grep -q "Provider setup complete"; then
     provider_ok=true
   fi
-  if echo "$logs" | grep -qE "\[openclaw-agent\] Doctor (completed|reported warnings)"; then
+  if echo "$logs" | grep -qE "Doctor (completed|reported warnings)"; then
     doctor_ok=true
   fi
-  if echo "$logs" | grep -q "\[openclaw-agent\] Ready"; then
+  if echo "$logs" | grep -q "\[openclaw-agent\].*Ready"; then
     ready_ok=true
   fi
 
@@ -136,7 +146,7 @@ test_version() {
     notes="missing log markers:${missing}"
   fi
 
-  RESULTS["${version}"]="${status}|${notes}"
+  add_result "$version" "$status" "$notes"
 
   # Cleanup
   dc down -v 2>/dev/null || true
@@ -146,7 +156,7 @@ test_version() {
 
 # ---- Run tests ----
 
-for ver in "${VERSIONS[@]}"; do
+for ver in $VERSIONS; do
   test_version "$ver"
 done
 
@@ -160,14 +170,21 @@ printf "%-12s %-6s %s\n" "VERSION" "STATUS" "NOTES"
 printf "%-12s %-6s %s\n" "-------" "------" "-----"
 
 ALL_PASS=true
-for ver in "${VERSIONS[@]}"; do
-  IFS='|' read -r status notes <<< "${RESULTS[$ver]}"
+IFS='|' read -ra V_ARR <<< "$RESULT_VERSIONS"
+IFS='|' read -ra S_ARR <<< "$RESULT_STATUSES"
+IFS='|' read -ra N_ARR <<< "$RESULT_NOTES"
+
+idx=0
+for ver in $VERSIONS; do
+  status="${S_ARR[$idx]:-FAIL}"
+  notes="${N_ARR[$idx]:-}"
   if [[ "$status" == "PASS" ]]; then
     printf "%-12s ${GREEN}%-6s${NC} %s\n" "$ver" "$status" "$notes"
   else
     printf "%-12s ${RED}%-6s${NC} %s\n" "$ver" "$status" "$notes"
     ALL_PASS=false
   fi
+  ((idx++)) || true
 done
 
 echo "========================================"
