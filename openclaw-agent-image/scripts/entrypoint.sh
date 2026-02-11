@@ -76,6 +76,20 @@ main() {
     warn "Doctor reported warnings (continuing)"
   fi
 
+  # 4b) Re-assert channel plugin state after doctor (2026.2.9+ doctor may
+  #     set plugins.entries.telegram.enabled=false even when channels.telegram
+  #     is fully configured). Re-apply what setup-channels intended.
+  if [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]]; then
+    local tmp; tmp="$(mktemp)"
+    if jq '.plugins.entries.telegram.enabled = true' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
+      mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
+      log "Telegram plugin re-enabled after doctor"
+    else
+      rm -f "${tmp}"
+      warn "Failed to re-enable Telegram plugin (continuing)"
+    fi
+  fi
+
   # 5) Start gateway
   log "Starting gateway on port ${OPENCLAW_GATEWAY_PORT} (bind=${OPENCLAW_GATEWAY_BIND})"
   openclaw gateway \

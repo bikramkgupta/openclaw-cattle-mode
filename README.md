@@ -147,6 +147,22 @@ Changes take effect on the next container restart or redeploy.
    bash scripts/deploy.sh
    ```
 
+## Supported Versions
+
+| OpenClaw Version | Image Tag | Status | Notes |
+|------------------|-----------|--------|-------|
+| `2026.2.9` | `2026.2.9` | **Current** | Requires entrypoint Telegram plugin fix (auto-applied) |
+| `2026.2.6` | `2026.2.6` | Tested | Previous stable release |
+| `2026.2.3` | `2026.2.3` | Tested | — |
+| `2026.2.2` | `2026.2.2` | Tested | — |
+| `2026.2.1` | `2026.2.1` | Tested | Earliest supported |
+
+The `IMAGE_TAG` in `.env.remote` / `.env.docker` must match an image that has been built and pushed to GHCR. Use the GHCR build workflow to build a new version:
+
+```bash
+gh workflow run ghcr-build-push.yml -f openclaw_version=<version>
+```
+
 ## Environment Variables
 
 | File | Purpose |
