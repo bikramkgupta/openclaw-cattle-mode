@@ -120,7 +120,7 @@ The GHCR workflow builds and pushes the container image:
 
 ```bash
 # Trigger manually
-gh workflow run ghcr-build-push.yml -f openclaw_version=2026.2.6
+gh workflow run ghcr-build-push.yml -f openclaw_version=2026.2.9
 ```
 
 This pushes to `ghcr.io/bikramkgupta/openclaw-agent` with tags: `latest`, `<version>`, `<sha>`.
@@ -176,7 +176,7 @@ image:
   tag: ${IMAGE_TAG}
 ```
 
-- The tag is set by `IMAGE_TAG` in `.env.remote` (e.g. `2026.2.6`). Use a pinned tag so deploys don't pull `latest` unexpectedly.
+- The tag is set by `IMAGE_TAG` in `.env.remote` (e.g. `2026.2.9`). Use a pinned tag so deploys don't pull `latest` unexpectedly.
 - `registry_type: GHCR` is required — it handles GHCR's token-exchange auth.
 - `DOCKER_HUB` does **not** work for GHCR images.
 - For public GHCR images, no `registry_credentials` needed.

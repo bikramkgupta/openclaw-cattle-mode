@@ -4,7 +4,7 @@ set -euo pipefail
 # =============================================================================
 # smoke-boot.sh — Container boot smoke test for OpenClaw Cattle Mode
 #
-# Builds the agent image (default OpenClaw 2026.2.6), starts the Compose stack,
+# Builds the agent image (default OpenClaw 2026.2.9), starts the Compose stack,
 # waits for agent health, then tears down. Validates image build and entrypoint.
 #
 # Run locally (Docker + Docker Compose required). Not run in CI.

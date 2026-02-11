@@ -45,7 +45,7 @@ jobs:
       - name: Create .env.docker
         run: |
           cat << 'ENVFILE' > .env.docker
-          IMAGE_TAG=2026.2.6
+          IMAGE_TAG=2026.2.9
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWFROM=${{ secrets.TELEGRAM_ALLOWFROM || '6944791786' }}
           GRADIENT_API_KEY=${{ secrets.GRADIENT_API_KEY }}
@@ -102,7 +102,7 @@ jobs:
       - name: Create .env.remote
         run: |
           cat << 'ENVFILE' > .env.remote
-          IMAGE_TAG=${{ secrets.IMAGE_TAG || '2026.2.6' }}
+          IMAGE_TAG=${{ secrets.IMAGE_TAG || '2026.2.9' }}
           AGENT_ID=${{ secrets.AGENT_ID }}
           AGENT_NAME=${{ secrets.AGENT_NAME }}
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}

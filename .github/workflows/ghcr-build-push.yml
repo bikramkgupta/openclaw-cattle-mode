@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       openclaw_version:
-        description: "OpenClaw version to install (e.g. 2026.2.6)"
+        description: "OpenClaw version to install (e.g. 2026.2.9)"
         required: false
-        default: "2026.2.6"
+        default: "2026.2.9"
 
 env:
   REGISTRY: ghcr.io

@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
 
-ARG OPENCLAW_VERSION=2026.2.6
+ARG OPENCLAW_VERSION=2026.2.9
 
 ENV NODE_ENV=production
 

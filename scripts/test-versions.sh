@@ -19,7 +19,7 @@ NC='\033[0m'
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-VERSIONS="2026.2.1 2026.2.2 2026.2.3 2026.2.6"
+VERSIONS="2026.2.1 2026.2.2 2026.2.3 2026.2.6 2026.2.9"
 
 # Parallel arrays for results (bash 3 compatible)
 RESULT_VERSIONS=""

@@ -139,7 +139,7 @@ Changes take effect on the next container restart or redeploy.
 
    Run the **"Build and Push to GHCR"** workflow in GitHub Actions.
 
-2. Set the deploy tag in `.env.remote`: `IMAGE_TAG=2026.2.6` (or the version you built). This controls which image tag App Platform pulls.
+2. Set the deploy tag in `.env.remote`: `IMAGE_TAG=2026.2.9` (or the version you built). This controls which image tag App Platform pulls.
 
 3. Redeploy:
 
