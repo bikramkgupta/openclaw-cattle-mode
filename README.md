@@ -264,7 +264,7 @@ The container is built on `node:22-bookworm-slim` with OpenClaw installed via np
 3. Restores workspace, sessions, and credentials from S3-compatible storage
 4. Runs `openclaw doctor` for migrations
 5. Re-asserts Telegram plugin state (2026.2.9+ fix)
-6. Configures skills (weather)
+6. Installs skills from ClawHub (per OPENCLAW_SKILLS env var)
 7. Starts the gateway + backup watcher + daily restart watchdog
 
 If the container dies, nothing is lost — rebuild, inject the same env vars, and the agent comes back with full state intact.

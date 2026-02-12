@@ -106,29 +106,19 @@ main() {
     fi
   fi
 
-  # 4c) Enable bundled skills (from OPENCLAW_SKILLS env, comma-separated)
+  # 4c) Install skills from ClawHub (OPENCLAW_SKILLS env, comma-separated slugs)
   local skills_csv="${OPENCLAW_SKILLS:-}"
   skills_csv="$(echo "${skills_csv}" | tr -d '[:space:]')"
   if [[ -n "${skills_csv}" ]]; then
-    local skills_json
-    skills_json="$(echo "${skills_csv}" | tr ',' '\n' | jq -R . | jq -s .)"
-
-    # Build entries object: {"weather": {"enabled": true}, "calendar": {"enabled": true}, ...}
-    local entries_json
-    entries_json="$(echo "${skills_csv}" | tr ',' '\n' | jq -R '{(.): {"enabled": true}}' | jq -s 'add')"
-
-    local tmp; tmp="$(mktemp)"
-    if jq --argjson allow "${skills_json}" --argjson entries "${entries_json}" '
-      .skills //= {} |
-      .skills.allowBundled = $allow |
-      .skills.entries = (.skills.entries // {} | . * $entries)
-    ' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
-      mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
-      log "Skills configured: ${skills_csv}"
-    else
-      rm -f "${tmp}"
-      warn "Failed to configure skills (continuing)"
-    fi
+    IFS=',' read -ra skill_slugs <<< "${skills_csv}"
+    for slug in "${skill_slugs[@]}"; do
+      if npx --yes clawhub@latest install "${slug}" 2>&1; then
+        log "Skill installed: ${slug}"
+      else
+        warn "Failed to install skill: ${slug} (continuing)"
+      fi
+    done
+    log "Skills install complete (${#skill_slugs[@]} requested)"
   fi
 
   # 5) Start gateway
