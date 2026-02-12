@@ -197,6 +197,35 @@ When adding a new env var, update **all** of these:
 
 ---
 
+## OpenClaw Documentation Reference
+
+The upstream OpenClaw docs live at `github.com/openclaw/openclaw/docs` and are tagged per release. Use `fetch-openclaw-doc.sh` to pull docs for the installed version:
+
+```bash
+# List available doc sections
+bash scripts/fetch-openclaw-doc.sh --list
+
+# List docs in a section
+bash scripts/fetch-openclaw-doc.sh --list channels
+
+# Fetch a specific doc (version auto-detected from IMAGE_TAG in .env.remote)
+bash scripts/fetch-openclaw-doc.sh channels/whatsapp
+bash scripts/fetch-openclaw-doc.sh channels/telegram
+
+# Fetch for a specific version
+bash scripts/fetch-openclaw-doc.sh channels/whatsapp 2026.2.9
+
+# Other useful sections
+bash scripts/fetch-openclaw-doc.sh --list gateway
+bash scripts/fetch-openclaw-doc.sh --list security
+bash scripts/fetch-openclaw-doc.sh --list plugins
+bash scripts/fetch-openclaw-doc.sh --list tools
+```
+
+The script resolves version in order: explicit argument → `IMAGE_TAG` from `.env.remote` → `.env.docker` → `main` branch.
+
+---
+
 ## Quick Reference
 
 | Task | Command |

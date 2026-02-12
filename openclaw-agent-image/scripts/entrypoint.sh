@@ -94,6 +94,18 @@ main() {
     fi
   fi
 
+  # 4b-ii) Re-assert WhatsApp plugin state after doctor (same issue as Telegram).
+  if [[ -n "${WHATSAPP_ALLOWFROM:-}" ]]; then
+    local tmp; tmp="$(mktemp)"
+    if jq '.plugins.entries.whatsapp.enabled = true' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
+      mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
+      log "WhatsApp plugin re-enabled after doctor"
+    else
+      rm -f "${tmp}"
+      warn "Failed to re-enable WhatsApp plugin (continuing)"
+    fi
+  fi
+
   # 4c) Enable bundled skills
   local tmp; tmp="$(mktemp)"
   if jq '

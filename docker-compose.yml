@@ -63,6 +63,9 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_ALLOWFROM: ${TELEGRAM_ALLOWFROM:-}
 
+      # WhatsApp (personal number)
+      WHATSAPP_ALLOWFROM: ${WHATSAPP_ALLOWFROM:-}
+
       # Providers
       GRADIENT_API_KEY: ${GRADIENT_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

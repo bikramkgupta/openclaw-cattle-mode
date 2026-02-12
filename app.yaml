@@ -38,6 +38,11 @@ workers:
         scope: RUN_TIME
         value: "${TELEGRAM_ALLOWFROM}"
 
+      # WhatsApp (personal number, selfChatMode)
+      - key: WHATSAPP_ALLOWFROM
+        scope: RUN_TIME
+        value: "${WHATSAPP_ALLOWFROM}"
+
       # Providers
       - key: GRADIENT_API_KEY
         scope: RUN_TIME

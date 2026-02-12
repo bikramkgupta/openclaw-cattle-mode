@@ -57,10 +57,37 @@ else
 fi
 }
 
+add_whatsapp() {
+  local allowlist="${WHATSAPP_ALLOWFROM:-}"
+  allowlist="$(echo "${allowlist}" | tr -d '[:space:]')"
+
+  if [[ -z "${allowlist}" ]]; then
+    warn "WHATSAPP_ALLOWFROM not set; skipping WhatsApp channel"
+    return 0
+  fi
+
+  log "Configuring WhatsApp: allowlist mode (personal number, selfChatMode)"
+
+  # Convert comma-separated E.164 numbers to JSON array.
+  local allow_json
+  allow_json="$(echo "${allowlist}" | tr ',' '\n' | jq -R . | jq -s .)"
+
+  local tmp
+  tmp="$(mktemp)"
+  jq --argjson allow "${allow_json}" '
+    .channels //= {} |
+    .channels.whatsapp = {
+      "selfChatMode": true,
+      "dmPolicy": "allowlist",
+      "allowFrom": $allow
+    }
+  ' "${CONFIG_FILE}" > "${tmp}" && mv "${tmp}" "${CONFIG_FILE}"
+}
+
 main() {
   ensure_file
   add_telegram
-  warn "V0 scaffold: only Telegram is configured (other channels intentionally omitted)"
+  add_whatsapp
   log "Channel setup complete"
 }
 
