@@ -21,6 +21,15 @@ workers:
       tag: ${IMAGE_TAG}
     instance_size_slug: apps-s-1vcpu-1gb
     instance_count: 1
+    # Liveness health check — gateway listens on 18789.
+    # Boot takes ~90s (restore + doctor + gateway start), so delay 120s.
+    liveness_health_check:
+      http_path: /
+      port: 18789
+      initial_delay_seconds: 120
+      period_seconds: 30
+      timeout_seconds: 5
+      failure_threshold: 3
     envs:
       # Agent identity
       - key: AGENT_ID
