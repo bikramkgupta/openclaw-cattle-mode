@@ -66,6 +66,9 @@ services:
       # WhatsApp (personal number)
       WHATSAPP_ALLOWFROM: ${WHATSAPP_ALLOWFROM:-}
 
+      # Skills
+      OPENCLAW_SKILLS: ${OPENCLAW_SKILLS:-}
+
       # Providers
       GRADIENT_API_KEY: ${GRADIENT_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

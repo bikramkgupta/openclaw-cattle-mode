@@ -60,6 +60,11 @@ workers:
         scope: RUN_TIME
         value: "${AGENT_DEFAULT_MODEL}"
 
+      # Skills (comma-separated list from clawhub.ai, e.g. weather,calendar)
+      - key: OPENCLAW_SKILLS
+        scope: RUN_TIME
+        value: "${OPENCLAW_SKILLS}"
+
       # Node/V8 memory
       - key: NODE_OPTIONS
         scope: RUN_TIME

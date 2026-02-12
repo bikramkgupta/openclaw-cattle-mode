@@ -106,19 +106,29 @@ main() {
     fi
   fi
 
-  # 4c) Enable bundled skills
-  local tmp; tmp="$(mktemp)"
-  if jq '
-    .skills //= {} |
-    .skills.allowBundled = ["weather"] |
-    .skills.entries //= {} |
-    .skills.entries.weather = {"enabled": true}
-  ' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
-    mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
-    log "Skills configured: weather"
-  else
-    rm -f "${tmp}"
-    warn "Failed to configure skills (continuing)"
+  # 4c) Enable bundled skills (from OPENCLAW_SKILLS env, comma-separated)
+  local skills_csv="${OPENCLAW_SKILLS:-}"
+  skills_csv="$(echo "${skills_csv}" | tr -d '[:space:]')"
+  if [[ -n "${skills_csv}" ]]; then
+    local skills_json
+    skills_json="$(echo "${skills_csv}" | tr ',' '\n' | jq -R . | jq -s .)"
+
+    # Build entries object: {"weather": {"enabled": true}, "calendar": {"enabled": true}, ...}
+    local entries_json
+    entries_json="$(echo "${skills_csv}" | tr ',' '\n' | jq -R '{(.): {"enabled": true}}' | jq -s 'add')"
+
+    local tmp; tmp="$(mktemp)"
+    if jq --argjson allow "${skills_json}" --argjson entries "${entries_json}" '
+      .skills //= {} |
+      .skills.allowBundled = $allow |
+      .skills.entries = (.skills.entries // {} | . * $entries)
+    ' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
+      mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
+      log "Skills configured: ${skills_csv}"
+    else
+      rm -f "${tmp}"
+      warn "Failed to configure skills (continuing)"
+    fi
   fi
 
   # 5) Start gateway
