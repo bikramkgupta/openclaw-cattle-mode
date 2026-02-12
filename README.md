@@ -151,7 +151,7 @@ Changes take effect on the next container restart or redeploy.
 
 | OpenClaw Version | Image Tag | Status | Notes |
 |------------------|-----------|--------|-------|
-| `2026.2.9` | `2026.2.9` | **Current** | Requires entrypoint Telegram plugin fix (auto-applied) |
+| `2026.2.9` | `2026.2.9` | **Current** | Runs on 1cpu/1gb; Telegram plugin fix auto-applied |
 | `2026.2.6` | `2026.2.6` | Tested | Previous stable release |
 | `2026.2.3` | `2026.2.3` | Tested | — |
 | `2026.2.2` | `2026.2.2` | Tested | — |
