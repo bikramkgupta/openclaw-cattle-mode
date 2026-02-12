@@ -163,6 +163,35 @@ The `IMAGE_TAG` in `.env.remote` / `.env.docker` must match an image that has be
 gh workflow run ghcr-build-push.yml -f openclaw_version=<version>
 ```
 
+## Memory Budget
+
+The agent runs on a 1cpu/1gb instance. Here's how the ~1024MB is used:
+
+| Component | Typical RSS | Notes |
+|-----------|-------------|-------|
+| `openclaw` (CLI parent) | ~130 MB | Spawns and supervises the gateway |
+| `openclaw-gateway` | ~470 MB | V8 heap + WebSocket + Telegram polling |
+| OS + Node runtime | ~50 MB | Shared libs, kernel buffers |
+| **Available headroom** | **~370 MB** | For spikes during doctor, subagents, tool calls |
+
+### Tuning `NODE_OPTIONS`
+
+The V8 heap limit is set via `NODE_OPTIONS=--max-old-space-size=<MB>`:
+
+| Instance | Recommended | Why |
+|----------|-------------|-----|
+| 1cpu/1gb | `768` | 512 OOMs during `openclaw doctor`; 768 leaves room for gateway |
+| 1cpu/2gb | `1536` | Comfortable margin for subagents and large tool outputs |
+
+### What causes OOM
+
+- Long-running sessions accumulating context (no automatic eviction)
+- Multiple concurrent subagents (each holds its own context window)
+- Large tool outputs (file reads, web fetches) buffered in memory
+- `openclaw doctor` at startup (briefly spikes memory)
+
+The daily gateway restart (see Architecture) mitigates slow leaks.
+
 ## Environment Variables
 
 | File | Purpose |
@@ -200,7 +229,9 @@ The container is built on `node:22-bookworm-slim` with OpenClaw installed via np
 2. Configures the Gradient provider and Telegram channel
 3. Restores workspace, sessions, and credentials from S3-compatible storage
 4. Runs `openclaw doctor` for migrations
-5. Starts the gateway + backup watcher
+5. Re-asserts Telegram plugin state (2026.2.9+ fix)
+6. Configures skills (weather)
+7. Starts the gateway + backup watcher + daily restart watchdog
 
 If the container dies, nothing is lost — rebuild, inject the same env vars, and the agent comes back with full state intact.
 

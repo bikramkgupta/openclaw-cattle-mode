@@ -21,6 +21,10 @@ require_env() {
 shutdown() {
   log "Shutdown signal received"
 
+  if [[ -n "${WATCHDOG_PID:-}" ]] && kill -0 "${WATCHDOG_PID}" 2>/dev/null; then
+    kill "${WATCHDOG_PID}" 2>/dev/null || true
+  fi
+
   if [[ -n "${BACKUP_PID:-}" ]] && kill -0 "${BACKUP_PID}" 2>/dev/null; then
     kill "${BACKUP_PID}" 2>/dev/null || true
   fi
@@ -90,6 +94,21 @@ main() {
     fi
   fi
 
+  # 4c) Enable bundled skills
+  local tmp; tmp="$(mktemp)"
+  if jq '
+    .skills //= {} |
+    .skills.allowBundled = ["weather"] |
+    .skills.entries //= {} |
+    .skills.entries.weather = {"enabled": true}
+  ' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
+    mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
+    log "Skills configured: weather"
+  else
+    rm -f "${tmp}"
+    warn "Failed to configure skills (continuing)"
+  fi
+
   # 5) Start gateway
   log "Starting gateway on port ${OPENCLAW_GATEWAY_PORT} (bind=${OPENCLAW_GATEWAY_BIND})"
   openclaw gateway \
@@ -102,6 +121,15 @@ main() {
   # 6) Start backup watcher (selective, debounced)
   /usr/local/bin/openclaw-backup &
   BACKUP_PID=$!
+
+  # 7) Daily restart watchdog — recycle the container every 24h to prevent
+  #    slow memory leaks from long-running sessions.
+  (
+    sleep 86400  # 24 hours
+    log "Daily restart: recycling gateway (uptime 24h)"
+    kill -TERM "${GATEWAY_PID}" 2>/dev/null || true
+  ) &
+  WATCHDOG_PID=$!
 
   log "Ready"
   wait "${GATEWAY_PID}"
