@@ -221,12 +221,46 @@ bash scripts/test-backup.sh && \
 bash scripts/test-versions.sh
 ```
 
+## Connecting WhatsApp
+
+WhatsApp uses QR-based linking (no bot token). Three steps:
+
+**1. Add your phone number to `.env.remote` and deploy:**
+
+```bash
+# In .env.remote, set your number (E.164 format):
+WHATSAPP_ALLOWFROM=+14085551234
+
+# Deploy
+bash scripts/deploy.sh
+```
+
+The entrypoint auto-configures `channels.whatsapp` with `dmPolicy: "allowlist"` and `selfChatMode: true`. Only your number can talk to the bot.
+
+**2. Connect to the container and scan the QR code:**
+
+```bash
+doctl apps console <app-id> openclaw-agent
+# Inside the container:
+openclaw channels login
+```
+
+Scan the QR from your phone: WhatsApp → Settings → Linked Devices → Link a Device.
+
+**3. If the gateway doesn't pick up the connection, restart the container:**
+
+```bash
+bash scripts/deploy.sh
+```
+
+Credentials are persisted to `~/.openclaw/credentials/whatsapp/` and backed up to S3 automatically. On subsequent restarts, WhatsApp reconnects without scanning again.
+
 ## Architecture
 
 The container is built on `node:22-bookworm-slim` with OpenClaw installed via npm. At startup, the entrypoint script:
 
 1. Generates `openclaw.json` from environment variables
-2. Configures the Gradient provider and Telegram channel
+2. Configures the Gradient provider, Telegram, and WhatsApp channels
 3. Restores workspace, sessions, and credentials from S3-compatible storage
 4. Runs `openclaw doctor` for migrations
 5. Re-asserts Telegram plugin state (2026.2.9+ fix)

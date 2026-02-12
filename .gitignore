@@ -10,3 +10,4 @@ REFERENCE-openclaw-*
 .app-spec-rendered.yaml
 .app-spec-rendered-test.yaml
 asset-list.md
+scripts/whatsapp-login.sh
