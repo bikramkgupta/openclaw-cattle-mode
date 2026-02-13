@@ -4,7 +4,7 @@
 [![Integration](https://github.com/bikramkgupta/openclaw-cattle-mode/actions/workflows/integration.yml/badge.svg)](https://github.com/bikramkgupta/openclaw-cattle-mode/actions/workflows/integration.yml)
 [![OpenClaw Version](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/bikramkgupta/openclaw-cattle-mode/main/.github/badges/version.json)](https://github.com/bikramkgupta/openclaw-cattle-mode)
 
-Containerized OpenClaw agent — immutable, disposable, replaceable. Run a single-purpose AI agent in a container with automatic backup/restore of all state. See [BLOG.md](BLOG.md) for the philosophy behind the cattle approach.
+Containerized OpenClaw agent — immutable, disposable, replaceable. Run a single-purpose AI agent in a container with automatic backup/restore of all state. See the [blog post](https://www.linkedin.com/pulse/case-running-openclaw-containers-bikram-gupta-ngc2c/) for the philosophy behind the cattle approach.
 
 ## What You Get
 
@@ -110,14 +110,13 @@ The agent's entire runtime state is continuously synced to a Spaces bucket. When
 
 | Directory | Why |
 |-----------|-----|
-| `skills/` | Downloaded from config on boot — ephemeral |
 | `openclaw.json` | Rendered from environment variables at boot — ephemeral |
 
 ### How it works
 
 1. **First boot** (Spaces is empty): seed files from the image populate the workspace. The agent bootstraps and the backup watcher syncs everything to Spaces.
 2. **Every subsequent boot**: the entrypoint restores `workspace/`, `agents/`, and `credentials/` from Spaces before starting the gateway. Seed files in the image are ignored — Spaces is the source of truth.
-3. **While running**: an inotify watcher detects file changes and syncs them to Spaces with a 5-second debounce.
+3. **While running**: a periodic sync runs every 60 seconds, pushing changes to Spaces.
 4. **On shutdown**: a final backup runs before the container exits.
 
 ### Updating workspace files
@@ -274,4 +273,4 @@ The container is built on `node:24-bookworm-slim` with OpenClaw installed via np
 
 If the container dies, nothing is lost — rebuild, inject the same env vars, and the agent comes back with full state intact.
 
-See [BLOG.md](BLOG.md) for the detailed writeup.
+See the [blog post](https://www.linkedin.com/pulse/case-running-openclaw-containers-bikram-gupta-ngc2c/) for the detailed writeup.
