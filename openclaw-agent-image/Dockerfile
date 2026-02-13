@@ -1,6 +1,7 @@
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 ARG OPENCLAW_VERSION=2026.2.9
+ARG GIT_COMMIT_SHA=dev
 
 ENV NODE_ENV=production
 
@@ -39,6 +40,9 @@ RUN useradd --uid 10001 --create-home --home-dir /home/openclaw --shell /bin/bas
 RUN mkdir -p /etc/openclaw /usr/local/bin /run/openclaw && \
     chown -R openclaw:openclaw /run/openclaw && \
     chmod 700 /run/openclaw
+
+RUN echo "${OPENCLAW_VERSION}" > /etc/openclaw/VERSION && \
+    echo "${GIT_COMMIT_SHA}" > /etc/openclaw/GIT_COMMIT_SHA
 
 COPY config/openclaw.base.json /etc/openclaw/openclaw.base.json
 COPY scripts/entrypoint.sh /usr/local/bin/openclaw-entrypoint

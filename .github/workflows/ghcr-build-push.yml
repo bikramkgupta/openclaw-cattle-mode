@@ -52,6 +52,7 @@ jobs:
           labels: ${{ steps.meta-agent.outputs.labels }}
           build-args: |
             OPENCLAW_VERSION=${{ inputs.openclaw_version }}
+            GIT_COMMIT_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -19,11 +19,7 @@ require_env() {
 }
 
 shutdown() {
-  log "Shutdown signal received"
-
-  if [[ -n "${WATCHDOG_PID:-}" ]] && kill -0 "${WATCHDOG_PID}" 2>/dev/null; then
-    kill "${WATCHDOG_PID}" 2>/dev/null || true
-  fi
+  log "Shutdown signal received (${1:-unknown})"
 
   if [[ -n "${BACKUP_PID:-}" ]] && kill -0 "${BACKUP_PID}" 2>/dev/null; then
     kill "${BACKUP_PID}" 2>/dev/null || true
@@ -41,7 +37,9 @@ shutdown() {
   exit 0
 }
 
-trap shutdown SIGTERM SIGINT SIGHUP
+trap 'shutdown SIGTERM' SIGTERM
+trap 'shutdown SIGINT'  SIGINT
+trap 'shutdown SIGHUP'  SIGHUP
 
 main() {
   # Defaults (keep env var names aligned with OpenClaw docs)
@@ -54,10 +52,15 @@ main() {
   require_env "AGENT_ID"
   require_env "OPENCLAW_GATEWAY_TOKEN"
 
+  # Read baked build metadata (set early so boot log can use them)
+  local baked_ver="" commit_sha=""
+  baked_ver="$(cat /etc/openclaw/VERSION 2>/dev/null || true)"
+  commit_sha="$(cat /etc/openclaw/GIT_COMMIT_SHA 2>/dev/null || true)"
+
   # Never leak AWS_* creds into the gateway process.
   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_DEFAULT_REGION AWS_REGION AWS_PROFILE || true
 
-  log "Booting agent: ${AGENT_ID}"
+  log "Booting agent: ${AGENT_ID} (v${baked_ver} @ ${commit_sha:0:7})"
 
   mkdir -p "${OPENCLAW_STATE_DIR}/workspace/memory" "${OPENCLAW_STATE_DIR}/credentials" "${OPENCLAW_STATE_DIR}/agents"
   mkdir -p "$(dirname "${OPENCLAW_CONFIG_PATH}")"
@@ -73,36 +76,50 @@ main() {
   # 3) Restore workspace + runtime state from object store
   /usr/local/bin/openclaw-restore || warn "Restore failed (starting fresh)"
 
-  # 4) Run migrations/repair (safe, idempotent)
-  if openclaw doctor --repair --non-interactive; then
-    log "Doctor completed"
+  # 4) Run migrations/repair — only when the OpenClaw version has changed.
+  #    /etc/openclaw/VERSION is baked into the image at build time.
+  #    workspace/.openclaw-version is persisted via S3 backup/restore.
+  local restored_ver=""
+  restored_ver="$(cat "${OPENCLAW_STATE_DIR}/workspace/.openclaw-version" 2>/dev/null || true)"
+
+  if [[ "${baked_ver}" != "${restored_ver}" ]]; then
+    log "Version change detected (${restored_ver:-none} -> ${baked_ver}), running doctor"
+    if openclaw doctor --repair --non-interactive; then
+      log "Doctor completed"
+    else
+      warn "Doctor reported warnings (continuing)"
+    fi
+
+    # Stamp the version so subsequent same-version boots skip doctor.
+    echo "${baked_ver}" > "${OPENCLAW_STATE_DIR}/workspace/.openclaw-version"
+    log "Version marker written: ${baked_ver}"
   else
-    warn "Doctor reported warnings (continuing)"
+    log "Same version (${baked_ver}), skipping doctor"
   fi
 
-  # 4b) Re-assert channel plugin state after doctor (2026.2.9+ doctor may
-  #     set plugins.entries.telegram.enabled=false even when channels.telegram
-  #     is fully configured). Re-apply what setup-channels intended.
+  # 4b) Re-assert channel plugin enabled state. The config is re-rendered fresh
+  #     from the template on every boot, so plugins.entries.*.enabled is never
+  #     set by setup-channels. Doctor sets it when it runs, but on same-version
+  #     boots we skip doctor. Assert it unconditionally.
   if [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]]; then
     local tmp; tmp="$(mktemp)"
     if jq '.plugins.entries.telegram.enabled = true' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
       mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
-      log "Telegram plugin re-enabled after doctor"
+      log "Telegram plugin enabled"
     else
       rm -f "${tmp}"
-      warn "Failed to re-enable Telegram plugin (continuing)"
+      warn "Failed to enable Telegram plugin (continuing)"
     fi
   fi
 
-  # 4b-ii) Re-assert WhatsApp plugin state after doctor (same issue as Telegram).
   if [[ -n "${WHATSAPP_ALLOWFROM:-}" ]]; then
     local tmp; tmp="$(mktemp)"
     if jq '.plugins.entries.whatsapp.enabled = true' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
       mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
-      log "WhatsApp plugin re-enabled after doctor"
+      log "WhatsApp plugin enabled"
     else
       rm -f "${tmp}"
-      warn "Failed to re-enable WhatsApp plugin (continuing)"
+      warn "Failed to enable WhatsApp plugin (continuing)"
     fi
   fi
 
@@ -112,6 +129,10 @@ main() {
   if [[ -n "${skills_csv}" ]]; then
     IFS=',' read -ra skill_slugs <<< "${skills_csv}"
     for slug in "${skill_slugs[@]}"; do
+      if [[ -d "${OPENCLAW_STATE_DIR}/workspace/skills/${slug}" ]]; then
+        log "Skill already present: ${slug} (skipping install)"
+        continue
+      fi
       if npx --yes clawhub@latest install "${slug}" 2>&1; then
         log "Skill installed: ${slug}"
       else
@@ -134,7 +155,7 @@ main() {
   /usr/local/bin/openclaw-backup &
   BACKUP_PID=$!
 
-  log "Ready"
+  log "Gateway launched (PID ${GATEWAY_PID})"
   wait "${GATEWAY_PID}"
 }
 

@@ -22,11 +22,11 @@ workers:
     instance_size_slug: apps-s-1vcpu-2gb
     instance_count: 1
     # Liveness health check — gateway listens on 18789.
-    # Boot takes ~90s (restore + doctor + gateway start), so delay 120s.
+    # Steady-state boot ~20-30s (doctor skipped); version-upgrade boot ~60-90s.
     liveness_health_check:
       http_path: /
       port: 18789
-      initial_delay_seconds: 120
+      initial_delay_seconds: 90
       period_seconds: 30
       timeout_seconds: 5
       failure_threshold: 3
@@ -52,10 +52,16 @@ workers:
         scope: RUN_TIME
         value: "${WHATSAPP_ALLOWFROM}"
 
-      # Providers
+      # Providers (at least one API key required)
       - key: GRADIENT_API_KEY
         scope: RUN_TIME
         value: "${GRADIENT_API_KEY}"
+      - key: ANTHROPIC_API_KEY
+        scope: RUN_TIME
+        value: "${ANTHROPIC_API_KEY}"
+      - key: OPENAI_API_KEY
+        scope: RUN_TIME
+        value: "${OPENAI_API_KEY}"
       - key: AGENT_DEFAULT_MODEL
         scope: RUN_TIME
         value: "${AGENT_DEFAULT_MODEL}"

@@ -32,7 +32,7 @@ Containerized OpenClaw agent — immutable, disposable, replaceable. Run a singl
    cp .env.docker.example .env.docker
    ```
 
-   Required values: `TELEGRAM_BOT_TOKEN`, `GRADIENT_API_KEY`, `OPENCLAW_GATEWAY_TOKEN`
+   Required values: `TELEGRAM_BOT_TOKEN`, `OPENCLAW_GATEWAY_TOKEN`, and at least one provider key (`GRADIENT_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`)
 
    Generate a gateway token:
 
@@ -257,15 +257,15 @@ Credentials are persisted to `~/.openclaw/credentials/whatsapp/` and backed up t
 
 ## Architecture
 
-The container is built on `node:22-bookworm-slim` with OpenClaw installed via npm. At startup, the entrypoint script:
+The container is built on `node:24-bookworm-slim` with OpenClaw installed via npm. At startup, the entrypoint script:
 
 1. Generates `openclaw.json` from environment variables
 2. Configures the Gradient provider, Telegram, and WhatsApp channels
 3. Restores workspace, sessions, and credentials from S3-compatible storage
-4. Runs `openclaw doctor` for migrations
-5. Re-asserts Telegram plugin state (2026.2.9+ fix)
-6. Installs skills from ClawHub (per OPENCLAW_SKILLS env var)
-7. Starts the gateway + backup watcher + daily restart watchdog
+4. Runs `openclaw doctor` for migrations (skipped on same-version reboots)
+5. Re-asserts Telegram plugin state (2026.2.9+ fix, only after doctor)
+6. Installs skills from ClawHub (skipped if already present from S3 restore)
+7. Starts the gateway + backup watcher
 
 If the container dies, nothing is lost — rebuild, inject the same env vars, and the agent comes back with full state intact.
 
