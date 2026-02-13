@@ -24,7 +24,6 @@ workers:
     # Liveness health check — gateway listens on 18789.
     # Steady-state boot ~20-30s (doctor skipped); version-upgrade boot ~60-90s.
     liveness_health_check:
-      http_path: /
       port: 18789
       initial_delay_seconds: 90
       period_seconds: 30
