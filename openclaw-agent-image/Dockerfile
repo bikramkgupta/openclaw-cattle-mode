@@ -12,7 +12,6 @@ ENV OPENCLAW_CONFIG_PATH=/run/openclaw/openclaw.json
 
 # OS deps:
 # - jq/envsubst: config generation
-# - inotify-tools: event-driven backup watcher (falls back to polling)
 # - python venv: awscli for Spaces/RustFS sync
 # - procps: healthcheck (pgrep)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -21,7 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gettext-base \
     git \
-    inotify-tools \
     jq \
     procps \
     python3 \

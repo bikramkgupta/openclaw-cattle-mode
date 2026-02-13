@@ -26,15 +26,26 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 log()  { echo -e "${GREEN}[test]${NC} $1"; }
 warn() { echo -e "${YELLOW}[test]${NC} $1"; }
-fail() { echo -e "${RED}[FAIL]${NC} $1"; ((FAIL++)); }
-pass() { echo -e "${GREEN}[PASS]${NC} $1"; ((PASS++)); }
+fail() { echo -e "${RED}[FAIL]${NC} $1"; (( FAIL++ )) || true; }
+pass() { echo -e "${GREEN}[PASS]${NC} $1"; (( PASS++ )) || true; }
+
+rustfs_endpoint() {
+  # Prefer localhost (Docker Desktop / native), fall back to container IP (OrbStack)
+  if curl -s -o /dev/null -w '' http://localhost:9000/ 2>/dev/null; then
+    echo "http://localhost:9000"
+  else
+    local ip
+    ip=$(docker inspect openclaw-cattle-mode-rustfs-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
+    echo "http://${ip}:9000"
+  fi
+}
 
 aws_local() {
   AWS_ACCESS_KEY_ID=rustfsadmin \
   AWS_SECRET_ACCESS_KEY=rustfsadmin \
   AWS_DEFAULT_REGION=us-east-1 \
   AWS_EC2_METADATA_DISABLED=true \
-  aws --endpoint-url http://localhost:9000 "$@"
+  aws --endpoint-url "${RUSTFS_URL}" "$@"
 }
 
 wait_for_health() {
@@ -81,21 +92,19 @@ cd "$PROJECT_DIR"
 log "Step 1: Clean slate"
 dc down -v 2>/dev/null || true
 
-# ---- Step 2: Start everything ----
-log "Step 2: Starting services"
-dc up -d --build
-
-# ---- Step 3: Wait for agent health ----
-log "Step 3: Waiting for agent health"
-wait_for_health 90 || exit 1
-
-# ---- Step 4: Seed customer workspace files in RustFS ----
-log "Step 4: Seeding customer workspace files"
-
 BUCKET="${SPACES_BUCKET:-openclaw-dev}"
 AGENT_ID="${AGENT_ID:-agent-dev}"
 S3_PREFIX="s3://${BUCKET}/openclaw/${AGENT_ID}"
 
+# ---- Step 2: Start RustFS and seed customer workspace files ----
+log "Step 2: Starting RustFS"
+dc up -d --build rustfs rustfs-bucket
+sleep 5
+
+RUSTFS_URL="$(rustfs_endpoint)"
+log "Using RustFS endpoint: ${RUSTFS_URL}"
+
+log "Step 3: Seeding customer workspace files in RustFS"
 echo "# Test Soul File" | aws_local s3 cp - "${S3_PREFIX}/workspace/SOUL.md"
 echo "# Test Agents File" | aws_local s3 cp - "${S3_PREFIX}/workspace/AGENTS.md"
 
@@ -105,8 +114,16 @@ else
   fail "Could not seed customer workspace files"
 fi
 
-# ---- Step 5: Write runtime state files inside the container ----
-log "Step 5: Writing runtime state files in container"
+# ---- Step 4: Start agent (restore pulls customer files from S3) ----
+log "Step 4: Starting agent"
+dc up -d openclaw-agent
+
+# ---- Step 5: Wait for agent health ----
+log "Step 5: Waiting for agent health"
+wait_for_health 90 || exit 1
+
+# ---- Step 6: Write runtime state files inside the container ----
+log "Step 6: Writing runtime state files in container"
 
 dc exec -T openclaw-agent bash -c '
   mkdir -p /home/openclaw/.openclaw/workspace/memory /home/openclaw/.openclaw/credentials
@@ -116,12 +133,12 @@ dc exec -T openclaw-agent bash -c '
 '
 pass "Runtime state files written"
 
-# ---- Step 6: Wait for backup to trigger ----
-log "Step 6: Waiting for inotify backup (15s debounce)..."
-sleep 15
+# ---- Step 7: Wait for backup to trigger ----
+log "Step 7: Waiting for periodic backup (60s interval + margin)..."
+sleep 65
 
-# ---- Step 7: Verify backup in RustFS ----
-log "Step 7: Verifying backup in RustFS"
+# ---- Step 8: Verify backup in RustFS ----
+log "Step 8: Verifying backup in RustFS"
 
 if aws_local s3 ls "${S3_PREFIX}/workspace/memory/2026-02-08.md" >/dev/null 2>&1; then
   pass "Memory file backed up to RustFS"
@@ -141,28 +158,28 @@ else
   fail "Credentials NOT found in RustFS"
 fi
 
-# ---- Step 8: Verify customer files NOT overwritten ----
-log "Step 8: Verifying customer workspace files are intact"
+# ---- Step 9: Verify customer files NOT overwritten ----
+log "Step 9: Verifying customer workspace files are intact"
 
-SOUL_CONTENT=$(aws_local s3 cp "${S3_PREFIX}/workspace/SOUL.md" - 2>/dev/null)
+SOUL_CONTENT=$(aws_local s3 cp "${S3_PREFIX}/workspace/SOUL.md" - 2>/dev/null || true)
 if [[ "${SOUL_CONTENT}" == "# Test Soul File" ]]; then
   pass "Customer SOUL.md not overwritten by backup"
 else
   fail "Customer SOUL.md was overwritten! Content: ${SOUL_CONTENT}"
 fi
 
-# ---- Step 9: Restart agent only ----
-log "Step 9: Restarting agent (stop + rm + up)"
+# ---- Step 10: Restart agent only ----
+log "Step 10: Restarting agent (stop + rm + up)"
 dc stop openclaw-agent
 dc rm -f openclaw-agent
 dc up -d openclaw-agent
 
-# ---- Step 10: Wait for health after restart ----
-log "Step 10: Waiting for agent health after restart"
+# ---- Step 11: Wait for health after restart ----
+log "Step 11: Waiting for agent health after restart"
 wait_for_health 90 || exit 1
 
-# ---- Step 11: Verify restore ----
-log "Step 11: Verifying restored files"
+# ---- Step 12: Verify restore ----
+log "Step 12: Verifying restored files"
 
 MEMORY_RESTORED=$(dc exec -T openclaw-agent cat /home/openclaw/.openclaw/workspace/memory/2026-02-08.md 2>/dev/null || true)
 if [[ "${MEMORY_RESTORED}" == *"Memory for 2026-02-08"* ]]; then
@@ -192,8 +209,8 @@ else
   fail "Customer SOUL.md NOT restored after restart"
 fi
 
-# ---- Step 12: Test final backup on shutdown ----
-log "Step 12: Testing final backup on shutdown"
+# ---- Step 13: Test final backup on shutdown ----
+log "Step 13: Testing final backup on shutdown"
 
 dc exec -T openclaw-agent bash -c '
   echo "# Shutdown test file" > /home/openclaw/.openclaw/workspace/memory/shutdown-test.md

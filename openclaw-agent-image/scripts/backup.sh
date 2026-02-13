@@ -16,8 +16,7 @@ S3_ENDPOINT_URL="${S3_ENDPOINT_URL:-}"
 # Written by restore.sh on successful restore; tells us --delete is safe.
 RESTORE_MARKER="${OPENCLAW_STATE_DIR}/.restore-complete"
 
-DEBOUNCE_SECONDS="${DEBOUNCE_SECONDS:-5}"
-POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-60}"
+BACKUP_INTERVAL="${BACKUP_INTERVAL:-60}"
 
 require_env() {
   local name="$1"
@@ -77,47 +76,12 @@ final_backup() {
   log "Final backup complete"
 }
 
-watch_inotify() {
-  log "Watching for changes with inotify"
-
-  local last_sync=0
+watch_periodic() {
+  log "Watching for changes every ${BACKUP_INTERVAL}s"
   while true; do
-    inotifywait -r -q -e create,modify,delete,move \
-      "${OPENCLAW_STATE_DIR}/workspace" \
-      "${OPENCLAW_STATE_DIR}/credentials" \
-      "${OPENCLAW_STATE_DIR}/agents" \
-      2>/dev/null || true
-
-    local now
-    now="$(date +%s)"
-    if (( now - last_sync >= DEBOUNCE_SECONDS )); then
-      sleep "${DEBOUNCE_SECONDS}"
-      backup_all
-      last_sync="$(date +%s)"
-    fi
-  done
-}
-
-watch_polling() {
-  log "Watching for changes with polling every ${POLL_INTERVAL_SECONDS}s"
-  local last=""
-
-  while true; do
-    sleep "${POLL_INTERVAL_SECONDS}"
-
-    local cur=""
-    for dir in workspace agents credentials; do
-      if [[ -d "${OPENCLAW_STATE_DIR}/${dir}" ]]; then
-        cur+=$(find "${OPENCLAW_STATE_DIR}/${dir}" -type f -exec stat -c '%Y%s' {} \; 2>/dev/null || true)
-      fi
-    done
-
-    cur="$(echo -n "${cur}" | md5sum | cut -d' ' -f1)"
-    if [[ "${cur}" != "${last}" ]]; then
-      log "Changes detected; syncing"
-      backup_all
-      last="${cur}"
-    fi
+    sleep "${BACKUP_INTERVAL}" &
+    wait $!          # interruptible by signals
+    backup_all
   done
 }
 
@@ -152,12 +116,7 @@ main() {
   log "Backing up runtime state to: ${S3_PATH}"
   backup_all
 
-  if command -v inotifywait >/dev/null 2>&1; then
-    watch_inotify
-  else
-    warn "inotifywait not available; using polling"
-    watch_polling
-  fi
+  watch_periodic
 }
 
 main "$@"
