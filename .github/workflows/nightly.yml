@@ -1,0 +1,440 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 11 PM Pacific / 7 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bikramkgupta/openclaw-agent
+  PROD_APP_NAME: openclaw-v0
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Check for new OpenClaw releases
+  # ---------------------------------------------------------------------------
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version_available: ${{ steps.compare.outputs.new_version_available }}
+      latest_version: ${{ steps.compare.outputs.latest_version }}
+      current_version: ${{ steps.compare.outputs.current_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get latest OpenClaw version from npm
+        id: npm
+        run: |
+          LATEST=$(npm view openclaw version)
+          echo "latest=${LATEST}" >> $GITHUB_OUTPUT
+          echo "Latest on npm: ${LATEST}"
+
+      - name: Get current version from Dockerfile
+        id: dockerfile
+        run: |
+          CURRENT=$(grep -oP 'ARG OPENCLAW_VERSION=\K.*' openclaw-agent-image/Dockerfile)
+          echo "current=${CURRENT}" >> $GITHUB_OUTPUT
+          echo "Current in Dockerfile: ${CURRENT}"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          LATEST="${{ steps.npm.outputs.latest }}"
+          CURRENT="${{ steps.dockerfile.outputs.current }}"
+          if [[ "${LATEST}" != "${CURRENT}" ]]; then
+            echo "new_version_available=true" >> $GITHUB_OUTPUT
+            echo "New version available: ${CURRENT} → ${LATEST}"
+          else
+            echo "new_version_available=false" >> $GITHUB_OUTPUT
+            echo "Already on latest: ${CURRENT}"
+          fi
+          echo "latest_version=${LATEST}" >> $GITHUB_OUTPUT
+          echo "current_version=${CURRENT}" >> $GITHUB_OUTPUT
+
+  # ---------------------------------------------------------------------------
+  # 2. Build new image (only when a new version is detected)
+  # ---------------------------------------------------------------------------
+  build-image:
+    needs: check-version
+    if: needs.check-version.outputs.new_version_available == 'true'
+    uses: ./.github/workflows/ghcr-build-push-reusable.yml
+    with:
+      openclaw_version: ${{ needs.check-version.outputs.latest_version }}
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+
+  # ---------------------------------------------------------------------------
+  # 3. Update production (only when build succeeded)
+  # ---------------------------------------------------------------------------
+  update-production:
+    runs-on: ubuntu-latest
+    needs: [check-version, build-image]
+    if: needs.build-image.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Find production app
+        id: app
+        run: |
+          APP_ID=$(doctl apps list --format ID,Spec.Name --no-header | grep "${{ env.PROD_APP_NAME }}" | awk '{print $1}')
+          if [[ -z "${APP_ID}" ]]; then
+            echo "::error::Production app '${{ env.PROD_APP_NAME }}' not found"
+            exit 1
+          fi
+          echo "app_id=${APP_ID}" >> $GITHUB_OUTPUT
+          echo "Found app: ${APP_ID}"
+
+      - name: Get live spec and update image tag
+        id: update
+        run: |
+          NEW_TAG="${{ needs.check-version.outputs.latest_version }}"
+          APP_ID="${{ steps.app.outputs.app_id }}"
+
+          # Get current live spec (preserves any manual changes)
+          doctl apps spec get "${APP_ID}" > /tmp/live-spec.yaml
+
+          # Update the image tag
+          sed -i "s|tag:.*|tag: ${NEW_TAG}|" /tmp/live-spec.yaml
+
+          echo "Updated spec to tag: ${NEW_TAG}"
+          grep "tag:" /tmp/live-spec.yaml
+
+          # Apply updated spec
+          doctl apps update "${APP_ID}" --spec /tmp/live-spec.yaml
+
+      - name: Wait for deployment
+        run: |
+          APP_ID="${{ steps.app.outputs.app_id }}"
+
+          # Get latest deployment ID
+          DEPLOY_ID=$(doctl apps list-deployments "${APP_ID}" --format ID --no-header | head -1)
+          echo "Tracking deployment: ${DEPLOY_ID}"
+
+          for i in $(seq 1 60); do
+            STATUS=$(doctl apps get-deployment "${APP_ID}" "${DEPLOY_ID}" --format Phase --no-header 2>/dev/null || echo "UNKNOWN")
+            case "${STATUS}" in
+              ACTIVE)
+                echo "Deployment successful!"
+                break
+                ;;
+              ERROR)
+                echo "::error::Deployment failed"
+                doctl apps logs "${APP_ID}" --type deploy | tail -30
+                exit 1
+                ;;
+              CANCELED|SUPERSEDED)
+                echo "::error::Deployment ${STATUS}"
+                exit 1
+                ;;
+            esac
+            if (( i % 10 == 0 )); then
+              echo "Status: ${STATUS} (${i}/60)"
+            fi
+            sleep 5
+          done
+
+          # Final check
+          FINAL=$(doctl apps get-deployment "${APP_ID}" "${DEPLOY_ID}" --format Phase --no-header 2>/dev/null || echo "UNKNOWN")
+          if [[ "${FINAL}" != "ACTIVE" ]]; then
+            echo "::error::Deployment timed out (last status: ${FINAL})"
+            exit 1
+          fi
+
+      - name: Verify boot logs
+        run: |
+          APP_ID="${{ steps.app.outputs.app_id }}"
+
+          # Poll logs until "Gateway launched" appears
+          echo "Waiting for boot to complete..."
+          for attempt in $(seq 1 24); do
+            LOGS=$(doctl apps logs "${APP_ID}" --type run 2>/dev/null | tail -200)
+            if echo "${LOGS}" | grep -q "Gateway launched"; then
+              break
+            fi
+            sleep 10
+          done
+
+          LOGS=$(doctl apps logs "${APP_ID}" --type run 2>/dev/null | tail -200)
+          echo "${LOGS}"
+
+          PASS=true
+          for marker in "Booting agent" "Gateway launched"; do
+            if ! echo "${LOGS}" | grep -q "${marker}"; then
+              echo "::warning::Missing boot marker: ${marker}"
+              PASS=false
+            fi
+          done
+
+          if ! echo "${LOGS}" | grep -qE "Doctor completed|skipping doctor"; then
+            echo "::warning::Missing doctor marker"
+            PASS=false
+          fi
+
+          if ! echo "${LOGS}" | grep -q "Telegram plugin enabled"; then
+            echo "::warning::Missing Telegram plugin marker"
+            PASS=false
+          fi
+
+          if [[ "${PASS}" != "true" ]]; then
+            echo "::warning::Some boot markers missing — check logs"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 4. Test fresh install (runs in parallel — no needs)
+  # ---------------------------------------------------------------------------
+  test-fresh-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    outputs:
+      app_id: ${{ steps.create.outputs.app_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Read current version
+        id: version
+        run: |
+          CURRENT=$(grep -oP 'ARG OPENCLAW_VERSION=\K.*' openclaw-agent-image/Dockerfile)
+          echo "current=${CURRENT}" >> $GITHUB_OUTPUT
+
+      - name: Render test app spec
+        run: |
+          export NIGHTLY_APP_NAME="openclaw-nightly-${GITHUB_RUN_ID}"
+          export IMAGE_TAG="${{ steps.version.outputs.current }}"
+          export AGENT_ID="${{ secrets.AGENT_ID }}"
+          export TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          export TELEGRAM_ALLOWFROM="${{ secrets.TELEGRAM_ALLOWFROM }}"
+          export GRADIENT_API_KEY="${{ secrets.GRADIENT_API_KEY }}"
+          export AGENT_DEFAULT_MODEL="${{ secrets.AGENT_DEFAULT_MODEL }}"
+          export OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}"
+          envsubst < app-nightly-test.yaml > /tmp/nightly-spec.yaml
+
+          # Verify no unsubstituted variables
+          if grep -q '${' /tmp/nightly-spec.yaml; then
+            echo "::error::Unsubstituted variables in rendered spec"
+            grep '${' /tmp/nightly-spec.yaml
+            exit 1
+          fi
+          echo "Rendered spec:"
+          cat /tmp/nightly-spec.yaml
+
+      - name: Create ephemeral app
+        id: create
+        run: |
+          APP_ID=$(doctl apps create --spec /tmp/nightly-spec.yaml --format ID --no-header)
+          echo "app_id=${APP_ID}" >> $GITHUB_OUTPUT
+          echo "Created ephemeral app: ${APP_ID}"
+
+      - name: Wait for deployment
+        run: |
+          APP_ID="${{ steps.create.outputs.app_id }}"
+
+          # Get the initial deployment
+          DEPLOY_ID=$(doctl apps list-deployments "${APP_ID}" --format ID --no-header | head -1)
+          echo "Tracking deployment: ${DEPLOY_ID}"
+
+          for i in $(seq 1 96); do  # 96 * 5s = 8 min
+            STATUS=$(doctl apps get-deployment "${APP_ID}" "${DEPLOY_ID}" --format Phase --no-header 2>/dev/null || echo "UNKNOWN")
+            case "${STATUS}" in
+              ACTIVE)
+                echo "Deployment successful!"
+                break
+                ;;
+              ERROR)
+                echo "::error::Ephemeral app deployment failed"
+                echo "--- Deploy logs ---"
+                doctl apps logs "${APP_ID}" --type deploy 2>&1 | tail -30 || true
+                echo "--- Run logs ---"
+                doctl apps logs "${APP_ID}" --type run 2>&1 | tail -30 || true
+                exit 1
+                ;;
+              CANCELED|SUPERSEDED)
+                echo "::error::Deployment ${STATUS}"
+                exit 1
+                ;;
+            esac
+            if (( i % 10 == 0 )); then
+              echo "Status: ${STATUS} (${i}/96)"
+            fi
+            sleep 5
+          done
+
+          FINAL=$(doctl apps get-deployment "${APP_ID}" "${DEPLOY_ID}" --format Phase --no-header 2>/dev/null || echo "UNKNOWN")
+          if [[ "${FINAL}" != "ACTIVE" ]]; then
+            echo "::error::Deployment timed out (last status: ${FINAL})"
+            exit 1
+          fi
+
+      - name: Verify boot logs
+        run: |
+          APP_ID="${{ steps.create.outputs.app_id }}"
+
+          # Poll logs until "Gateway launched" appears (doctor can take 60-90s on fresh install)
+          echo "Waiting for boot to complete..."
+          for attempt in $(seq 1 24); do  # 24 * 10s = 4 min
+            LOGS=$(doctl apps logs "${APP_ID}" --type run 2>/dev/null | tail -200)
+            if echo "${LOGS}" | grep -q "Gateway launched"; then
+              echo "Gateway launched detected on attempt ${attempt}"
+              break
+            fi
+            if (( attempt % 6 == 0 )); then
+              echo "Still waiting... (${attempt}/24)"
+            fi
+            sleep 10
+          done
+
+          # Final log capture
+          LOGS=$(doctl apps logs "${APP_ID}" --type run 2>/dev/null | tail -200)
+          echo "=== Boot logs ==="
+          echo "${LOGS}"
+          echo "================="
+
+          ERRORS=0
+          for marker in "Booting agent" "Gateway launched"; do
+            if ! echo "${LOGS}" | grep -q "${marker}"; then
+              echo "::error::Missing boot marker: ${marker}"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          if ! echo "${LOGS}" | grep -qE "Doctor completed|skipping doctor"; then
+            echo "::error::Missing doctor marker"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          if ! echo "${LOGS}" | grep -q "Telegram plugin enabled"; then
+            echo "::error::Missing Telegram plugin marker"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          if (( ERRORS > 0 )); then
+            echo "::error::${ERRORS} boot marker(s) missing"
+            exit 1
+          fi
+
+          echo "All boot markers verified"
+
+  # ---------------------------------------------------------------------------
+  # 5. Cleanup ephemeral app (always runs)
+  # ---------------------------------------------------------------------------
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: test-fresh-install
+    if: always()
+    steps:
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Delete ephemeral app
+        run: |
+          APP_ID="${{ needs.test-fresh-install.outputs.app_id }}"
+          if [[ -z "${APP_ID}" ]]; then
+            echo "No app ID — nothing to clean up"
+            exit 0
+          fi
+          echo "Deleting ephemeral app: ${APP_ID}"
+          doctl apps delete "${APP_ID}" --force || echo "App already deleted or not found"
+          echo "Cleanup complete"
+
+  # ---------------------------------------------------------------------------
+  # 6. Report (always runs after everything)
+  # ---------------------------------------------------------------------------
+  report:
+    runs-on: ubuntu-latest
+    needs: [check-version, build-image, update-production, test-fresh-install, cleanup]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate summary
+        run: |
+          echo "## Nightly Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Check Version | \`${{ needs.check-version.result }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Image | \`${{ needs.build-image.result }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Update Production | \`${{ needs.update-production.result }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Fresh Install | \`${{ needs.test-fresh-install.result }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cleanup | \`${{ needs.cleanup.result }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          CURRENT="${{ needs.check-version.outputs.current_version }}"
+          LATEST="${{ needs.check-version.outputs.latest_version }}"
+          NEW="${{ needs.check-version.outputs.new_version_available }}"
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "| Current Version | \`${CURRENT}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Latest on npm | \`${LATEST}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| New Version? | \`${NEW}\` |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Update version badge
+        run: |
+          VERSION="${{ needs.check-version.outputs.current_version }}"
+          FRESH="${{ needs.test-fresh-install.result }}"
+
+          if [[ "${FRESH}" == "success" ]]; then
+            COLOR="brightgreen"
+          else
+            COLOR="red"
+          fi
+
+          # If a new version was deployed successfully, use that
+          if [[ "${{ needs.update-production.result }}" == "success" ]]; then
+            VERSION="${{ needs.check-version.outputs.latest_version }}"
+          fi
+
+          mkdir -p .github/badges
+          printf '{\n  "schemaVersion": 1,\n  "label": "openclaw",\n  "message": "v%s",\n  "color": "%s"\n}\n' \
+            "${VERSION}" "${COLOR}" > .github/badges/version.json
+
+      - name: Commit badge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/version.json
+          if git diff --cached --quiet; then
+            echo "No badge changes to commit"
+          else
+            git commit -m "Update version badge [skip ci]"
+            git push
+          fi
+
+      - name: Notify on failure (Telegram)
+        if: >-
+          needs.test-fresh-install.result == 'failure' ||
+          needs.update-production.result == 'failure'
+        uses: actions/github-script@v7
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        with:
+          script: |
+            const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+            const token = process.env.TELEGRAM_BOT_TOKEN;
+            if (!chatId || !token) {
+              console.log('Telegram notification skipped (TELEGRAM_ADMIN_CHAT_ID not set)');
+              return;
+            }
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const text = `⚠️ Nightly pipeline failure\n\nFresh install: ${{ needs.test-fresh-install.result }}\nProduction update: ${{ needs.update-production.result }}\n\n${runUrl}`;
+            const url = `https://api.telegram.org/bot${token}/sendMessage`;
+            await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true })
+            });

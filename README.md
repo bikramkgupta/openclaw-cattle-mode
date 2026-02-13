@@ -1,5 +1,9 @@
 # OpenClaw Cattle Mode
 
+[![Nightly](https://github.com/bikramkgupta/openclaw-cattle-mode/actions/workflows/nightly.yml/badge.svg)](https://github.com/bikramkgupta/openclaw-cattle-mode/actions/workflows/nightly.yml)
+[![Integration](https://github.com/bikramkgupta/openclaw-cattle-mode/actions/workflows/integration.yml/badge.svg)](https://github.com/bikramkgupta/openclaw-cattle-mode/actions/workflows/integration.yml)
+[![OpenClaw Version](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/bikramkgupta/openclaw-cattle-mode/main/.github/badges/version.json)](https://github.com/bikramkgupta/openclaw-cattle-mode)
+
 Containerized OpenClaw agent — immutable, disposable, replaceable. Run a single-purpose AI agent in a container with automatic backup/restore of all state. See [BLOG.md](BLOG.md) for the philosophy behind the cattle approach.
 
 ## What You Get

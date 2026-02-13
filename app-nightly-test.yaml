@@ -1,0 +1,48 @@
+name: ${NIGHTLY_APP_NAME}
+region: syd
+
+# Ephemeral test app for nightly CI.
+# Minimal variant of app.yaml — no WhatsApp, no Spaces, no skills.
+# Created by nightly.yml, deleted by the cleanup job after each run.
+
+workers:
+  - name: openclaw-agent
+    image:
+      registry_type: GHCR
+      registry: ghcr.io
+      repository: bikramkgupta/openclaw-agent
+      tag: ${IMAGE_TAG}
+    instance_size_slug: apps-s-1vcpu-2gb
+    instance_count: 1
+    liveness_health_check:
+      http_path: /
+      port: 18789
+      initial_delay_seconds: 90
+      period_seconds: 30
+      timeout_seconds: 5
+      failure_threshold: 3
+    envs:
+      - key: AGENT_ID
+        scope: RUN_TIME
+        value: "${AGENT_ID}"
+      - key: AGENT_NAME
+        scope: RUN_TIME
+        value: "OpenClaw Nightly Test"
+      - key: TELEGRAM_BOT_TOKEN
+        scope: RUN_TIME
+        value: "${TELEGRAM_BOT_TOKEN}"
+      - key: TELEGRAM_ALLOWFROM
+        scope: RUN_TIME
+        value: "${TELEGRAM_ALLOWFROM}"
+      - key: GRADIENT_API_KEY
+        scope: RUN_TIME
+        value: "${GRADIENT_API_KEY}"
+      - key: AGENT_DEFAULT_MODEL
+        scope: RUN_TIME
+        value: "${AGENT_DEFAULT_MODEL}"
+      - key: OPENCLAW_GATEWAY_TOKEN
+        scope: RUN_TIME
+        value: "${OPENCLAW_GATEWAY_TOKEN}"
+      - key: NODE_OPTIONS
+        scope: RUN_TIME
+        value: "--max-old-space-size=1536"
