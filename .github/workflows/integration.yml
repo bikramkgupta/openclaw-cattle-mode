@@ -102,9 +102,10 @@ jobs:
           AGENT_NAME=${{ secrets.AGENT_NAME }}
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWFROM=${{ secrets.TELEGRAM_ALLOWFROM }}
+          WHATSAPP_ALLOWFROM=${{ secrets.WHATSAPP_ALLOWFROM }}
           GRADIENT_API_KEY=${{ secrets.GRADIENT_API_KEY }}
           AGENT_DEFAULT_MODEL=${{ secrets.AGENT_DEFAULT_MODEL }}
-          NODE_OPTIONS=${{ secrets.NODE_OPTIONS || '--max-old-space-size=1536' }}
+          NODE_OPTIONS=${{ secrets.NODE_OPTIONS || '--max-old-space-size=768' }}
           OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
           SPACES_BUCKET=${{ secrets.SPACES_BUCKET }}
           SPACES_REGION=${{ secrets.SPACES_REGION }}
