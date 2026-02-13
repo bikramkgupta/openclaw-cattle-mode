@@ -52,6 +52,40 @@ doctl spaces keys create "my-key-name" \
 
 ---
 
+## When to Rebuild the Image
+
+The GHCR image (`ghcr.io/bikramkgupta/openclaw-agent:<tag>`) is built once and baked at build time. **`deploy.sh` only updates the app spec — it does NOT rebuild the image.**
+
+| What changed | Action needed |
+|---|---|
+| `openclaw-agent-image/scripts/*` (entrypoint, setup, backup, etc.) | **Rebuild image**, then deploy |
+| `openclaw-agent-image/Dockerfile` | **Rebuild image**, then deploy |
+| `openclaw-agent-image/config/*` (base JSON template) | **Rebuild image**, then deploy |
+| `app.yaml` (spec template) | Deploy only |
+| `.env.remote` (env var values) | Deploy only |
+| `IMAGE_TAG` in `.env.remote` (switch to new image) | Deploy only |
+
+### Rebuild + deploy (image changes)
+
+```bash
+# 1. Rebuild — triggers GitHub Actions to build and push to GHCR
+gh workflow run ghcr-build-push.yml -f openclaw_version=2026.2.12
+
+# 2. Wait for build to complete
+gh run watch    # or check Actions tab
+
+# 3. Deploy with new image
+bash scripts/deploy.sh
+```
+
+### Deploy only (spec/env changes)
+
+```bash
+bash scripts/deploy.sh
+```
+
+---
+
 ## Deploy Method 1: Local Docker Compose
 
 **Env file:** `.env.docker`
