@@ -211,13 +211,19 @@ jobs:
           echo "current=${CURRENT}" >> $GITHUB_OUTPUT
 
       - name: Render test app spec
+        env:
+          AGENT_ID: ${{ secrets.AGENT_ID }}
+          GRADIENT_API_KEY: ${{ secrets.GRADIENT_API_KEY }}
+          AGENT_DEFAULT_MODEL: ${{ secrets.AGENT_DEFAULT_MODEL }}
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
         run: |
+          sanitize() { printf '%s' "$1" | tr -d '\n\r'; }
           export NIGHTLY_APP_NAME="openclaw-nightly-${GITHUB_RUN_ID}"
           export IMAGE_TAG="${{ steps.version.outputs.current }}"
-          export AGENT_ID="${{ secrets.AGENT_ID }}"
-          export GRADIENT_API_KEY="${{ secrets.GRADIENT_API_KEY }}"
-          export AGENT_DEFAULT_MODEL="${{ secrets.AGENT_DEFAULT_MODEL }}"
-          export OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}"
+          export AGENT_ID="$(sanitize "$AGENT_ID")"
+          export GRADIENT_API_KEY="$(sanitize "$GRADIENT_API_KEY")"
+          export AGENT_DEFAULT_MODEL="$(sanitize "$AGENT_DEFAULT_MODEL")"
+          export OPENCLAW_GATEWAY_TOKEN="$(sanitize "$OPENCLAW_GATEWAY_TOKEN")"
           envsubst < app-nightly-test.yaml > /tmp/nightly-spec.yaml
 
           # Verify no unsubstituted variables
