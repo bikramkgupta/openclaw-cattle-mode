@@ -215,8 +215,6 @@ jobs:
           export NIGHTLY_APP_NAME="openclaw-nightly-${GITHUB_RUN_ID}"
           export IMAGE_TAG="${{ steps.version.outputs.current }}"
           export AGENT_ID="${{ secrets.AGENT_ID }}"
-          export TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
-          export TELEGRAM_ALLOWFROM="${{ secrets.TELEGRAM_ALLOWFROM }}"
           export GRADIENT_API_KEY="${{ secrets.GRADIENT_API_KEY }}"
           export AGENT_DEFAULT_MODEL="${{ secrets.AGENT_DEFAULT_MODEL }}"
           export OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}"
@@ -312,11 +310,6 @@ jobs:
 
           if ! echo "${LOGS}" | grep -qE "Doctor completed|skipping doctor"; then
             echo "::error::Missing doctor marker"
-            ERRORS=$((ERRORS + 1))
-          fi
-
-          if ! echo "${LOGS}" | grep -q "Telegram plugin enabled"; then
-            echo "::error::Missing Telegram plugin marker"
             ERRORS=$((ERRORS + 1))
           fi
 

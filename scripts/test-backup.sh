@@ -62,6 +62,13 @@ wait_for_health() {
   return 1
 }
 
+dump_agent_logs() {
+  echo ""
+  log "=== Container logs (openclaw-agent) ==="
+  docker logs openclaw-cattle-mode-openclaw-agent-1 2>&1 | tail -80 || true
+  echo ""
+}
+
 cleanup() {
   log "Cleaning up..."
   cd "$PROJECT_DIR"
@@ -92,9 +99,16 @@ cd "$PROJECT_DIR"
 log "Step 1: Clean slate"
 dc down -v 2>/dev/null || true
 
-BUCKET="${SPACES_BUCKET:-openclaw-dev}"
+# Read config from the same env file docker compose uses, so S3 paths match.
+_env_val() { grep "^${1}=" "${ENV_FILE}" 2>/dev/null | head -1 | cut -d= -f2-; }
+
+BUCKET="$(_env_val SPACES_BUCKET)"
+BUCKET="${BUCKET:-openclaw-dev}"
+AGENT_ID="$(_env_val AGENT_ID)"
 AGENT_ID="${AGENT_ID:-agent-dev}"
 S3_PREFIX="s3://${BUCKET}/openclaw/${AGENT_ID}"
+
+log "S3 prefix: ${S3_PREFIX}"
 
 # ---- Step 2: Start RustFS and seed customer workspace files ----
 log "Step 2: Starting RustFS"
@@ -234,6 +248,7 @@ echo -e "  ${RED}FAILED: ${FAIL}${NC}"
 echo "========================================"
 
 if [[ "${FAIL}" -gt 0 ]]; then
+  dump_agent_logs
   exit 1
 fi
 exit 0

@@ -3,7 +3,7 @@ region: syd
 
 # V0 scaffold for DigitalOcean App Platform.
 # - Use as a Worker (no inbound HTTP required for Telegram long-polling).
-# - Instance size pinned to 1cpu/2gb.
+# - Instance size pinned to 1cpu/1gb.
 #
 # Deploy from a pre-built image in GHCR (GitHub Container Registry).
 # Build/push via CI (see .github/workflows/ghcr-build-push.yml), then App Platform pulls.
@@ -19,7 +19,7 @@ workers:
       registry: ghcr.io
       repository: bikramkgupta/openclaw-agent
       tag: ${IMAGE_TAG}
-    instance_size_slug: apps-s-1vcpu-2gb
+    instance_size_slug: apps-s-1vcpu-1gb
     instance_count: 1
     # Liveness health check — gateway listens on 18789.
     # Steady-state boot ~20-30s (doctor skipped); version-upgrade boot ~60-90s.

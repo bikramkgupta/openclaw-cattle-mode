@@ -1,9 +1,11 @@
 # Container test (smoke or full backup/restore) and optional deploy to App Platform.
 #
 # Required secrets for container test: AGENT_ID, OPENCLAW_GATEWAY_TOKEN
-# Optional (for full E2E): TELEGRAM_BOT_TOKEN, GRADIENT_API_KEY
-#   - If both optional are set → runs test-backup.sh (Spaces/backup/restore via local RustFS)
+# Optional (for full E2E): GRADIENT_API_KEY
+#   - If GRADIENT_API_KEY is set → runs test-backup.sh (Spaces/backup/restore via local RustFS)
 #   - Otherwise → runs smoke-boot.sh (container boots, health check passes)
+# NOTE: Telegram is intentionally excluded from CI tests to avoid conflicting
+#   with the production bot (Telegram allows only one poller per token).
 #
 # For deploy job: set run_deploy when triggering; requires DIGITALOCEAN_TOKEN and all
 # .env.remote vars (see DEPLOYMENT.md) as GitHub secrets.
@@ -46,8 +48,6 @@ jobs:
         run: |
           cat << 'ENVFILE' > .env.docker
           IMAGE_TAG=2026.2.12
-          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_ALLOWFROM=${{ secrets.TELEGRAM_ALLOWFROM || '6944791786' }}
           GRADIENT_API_KEY=${{ secrets.GRADIENT_API_KEY }}
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
@@ -66,8 +66,8 @@ jobs:
       - name: Decide smoke vs full E2E
         id: mode
         run: |
-          # Full E2E only when both Telegram and Gradient secrets are non-empty
-          if grep -qE '^TELEGRAM_BOT_TOKEN=.+' .env.docker 2>/dev/null && grep -qE '^GRADIENT_API_KEY=.+' .env.docker 2>/dev/null; then
+          # Full E2E when Gradient secret is non-empty (Telegram intentionally excluded)
+          if grep -qE '^GRADIENT_API_KEY=.+' .env.docker 2>/dev/null; then
             echo "run_full=true" >> $GITHUB_OUTPUT
             echo "Running full E2E (backup/restore)"
           else

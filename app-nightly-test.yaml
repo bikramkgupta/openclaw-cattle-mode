@@ -2,7 +2,7 @@ name: ${NIGHTLY_APP_NAME}
 region: syd
 
 # Ephemeral test app for nightly CI.
-# Minimal variant of app.yaml — no WhatsApp, no Spaces, no skills.
+# Minimal variant of app.yaml — no Telegram, no WhatsApp, no Spaces, no skills.
 # Created by nightly.yml, deleted by the cleanup job after each run.
 
 workers:
@@ -28,12 +28,6 @@ workers:
       - key: AGENT_NAME
         scope: RUN_TIME
         value: "OpenClaw Nightly Test"
-      - key: TELEGRAM_BOT_TOKEN
-        scope: RUN_TIME
-        value: "${TELEGRAM_BOT_TOKEN}"
-      - key: TELEGRAM_ALLOWFROM
-        scope: RUN_TIME
-        value: "${TELEGRAM_ALLOWFROM}"
       - key: GRADIENT_API_KEY
         scope: RUN_TIME
         value: "${GRADIENT_API_KEY}"
