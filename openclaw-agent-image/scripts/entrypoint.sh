@@ -134,15 +134,6 @@ main() {
   /usr/local/bin/openclaw-backup &
   BACKUP_PID=$!
 
-  # 7) Daily restart watchdog — recycle the container every 24h to prevent
-  #    slow memory leaks from long-running sessions.
-  (
-    sleep 86400  # 24 hours
-    log "Daily restart: recycling gateway (uptime 24h)"
-    kill -TERM "${GATEWAY_PID}" 2>/dev/null || true
-  ) &
-  WATCHDOG_PID=$!
-
   log "Ready"
   wait "${GATEWAY_PID}"
 }
