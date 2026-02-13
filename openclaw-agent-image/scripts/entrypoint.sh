@@ -113,13 +113,20 @@ main() {
   fi
 
   if [[ -n "${WHATSAPP_ALLOWFROM:-}" ]]; then
-    local tmp; tmp="$(mktemp)"
-    if jq '.plugins.entries.whatsapp.enabled = true' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
-      mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
-      log "WhatsApp plugin enabled"
+    local wa_cred_dir="${OPENCLAW_STATE_DIR}/credentials/whatsapp"
+    if [[ -d "${wa_cred_dir}" ]] && [[ -n "$(ls -A "${wa_cred_dir}" 2>/dev/null)" ]]; then
+      local tmp; tmp="$(mktemp)"
+      if jq '.plugins.entries.whatsapp.enabled = true' "${OPENCLAW_CONFIG_PATH}" > "${tmp}"; then
+        mv "${tmp}" "${OPENCLAW_CONFIG_PATH}"
+        log "WhatsApp plugin enabled (credentials found)"
+      else
+        rm -f "${tmp}"
+        warn "Failed to enable WhatsApp plugin (continuing)"
+      fi
     else
-      rm -f "${tmp}"
-      warn "Failed to enable WhatsApp plugin (continuing)"
+      warn "WhatsApp credentials not found — plugin NOT enabled (gateway would crash without them)"
+      warn "To complete first-time setup: doctl apps console <app-id> openclaw-agent → openclaw channels login"
+      warn "After QR scan, credentials sync to S3 within 60s. Redeploy to activate WhatsApp."
     fi
   fi
 
