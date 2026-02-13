@@ -74,11 +74,6 @@ jobs:
             echo "run_full=false" >> $GITHUB_OUTPUT
             echo "Running smoke only (container boot)"
           fi
-
-      - name: Install AWS CLI (for full E2E)
-        if: steps.mode.outputs.run_full == 'true'
-        run: sudo apt-get update && sudo apt-get install -y awscli
-
       - name: Run smoke (container boot)
         if: steps.mode.outputs.run_full == 'false'
         run: bash scripts/smoke-boot.sh
