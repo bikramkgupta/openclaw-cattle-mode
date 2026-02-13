@@ -19,7 +19,7 @@ NC='\033[0m'
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-VERSIONS="2026.2.1 2026.2.2 2026.2.3 2026.2.6 2026.2.9"
+VERSIONS="2026.2.1 2026.2.2 2026.2.3 2026.2.6 2026.2.9 2026.2.12"
 
 # Parallel arrays for results (bash 3 compatible)
 RESULT_VERSIONS=""
@@ -117,7 +117,7 @@ test_version() {
   if echo "$logs" | grep -qE "Doctor (completed|reported warnings)"; then
     doctor_ok=true
   fi
-  if echo "$logs" | grep -q "\[openclaw-agent\].*Ready"; then
+  if echo "$logs" | grep -q "\[openclaw-agent\].*Gateway launched"; then
     ready_ok=true
   fi
 

@@ -34,7 +34,7 @@ fi
 
 # ---- Export every variable that app.yaml uses (dummy values for substitution only) ----
 # These are substituted into app.yaml; we only assert no ${VAR} remains.
-export IMAGE_TAG="${IMAGE_TAG:-2026.2.9}"
+export IMAGE_TAG="${IMAGE_TAG:-2026.2.12}"
 export AGENT_ID="${AGENT_ID:-test-agent}"
 export AGENT_NAME="${AGENT_NAME:-Test Agent}"
 export TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-dummy}"

@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       openclaw_version:
-        description: "OpenClaw version to install (e.g. 2026.2.9)"
+        description: "OpenClaw version to install (e.g. 2026.2.12)"
         required: false
-        default: "2026.2.9"
+        default: "2026.2.12"
 
 env:
   REGISTRY: registry.digitalocean.com

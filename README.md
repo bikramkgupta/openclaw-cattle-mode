@@ -139,7 +139,7 @@ Changes take effect on the next container restart or redeploy.
 
    Run the **"Build and Push to GHCR"** workflow in GitHub Actions.
 
-2. Set the deploy tag in `.env.remote`: `IMAGE_TAG=2026.2.9` (or the version you built). This controls which image tag App Platform pulls.
+2. Set the deploy tag in `.env.remote`: `IMAGE_TAG=2026.2.12` (or the version you built). This controls which image tag App Platform pulls.
 
 3. Redeploy:
 
@@ -151,7 +151,8 @@ Changes take effect on the next container restart or redeploy.
 
 | OpenClaw Version | Image Tag | Status | Notes |
 |------------------|-----------|--------|-------|
-| `2026.2.9` | `2026.2.9` | **Current** | Runs on 1cpu/1gb; Telegram plugin fix auto-applied |
+| `2026.2.12` | `2026.2.12` | **Current** | — |
+| `2026.2.9`  | `2026.2.9`  | Tested | Telegram plugin fix auto-applied |
 | `2026.2.6` | `2026.2.6` | Tested | Previous stable release |
 | `2026.2.3` | `2026.2.3` | Tested | — |
 | `2026.2.2` | `2026.2.2` | Tested | — |
