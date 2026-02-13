@@ -30,6 +30,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${SPACES_SECRET_ACCESS_KEY:-rustfsadmin}
       AWS_DEFAULT_REGION: ${SPACES_REGION:-us-east-1}
       AWS_EC2_METADATA_DISABLED: "true"
+      SPACES_BUCKET: ${SPACES_BUCKET:-openclaw-dev}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

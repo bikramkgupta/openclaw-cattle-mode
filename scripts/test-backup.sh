@@ -83,6 +83,12 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+# Warn on duplicate keys in env file (indicates secret contamination)
+_dupes=$(awk -F= 'NF>1 && $1!="" {print $1}' "${ENV_FILE}" | sort | uniq -d)
+if [[ -n "$_dupes" ]]; then
+  warn "Duplicate keys in ${ENV_FILE}: ${_dupes} (last-match-wins applies)"
+fi
+
 if ! command -v aws >/dev/null 2>&1; then
   echo "ERROR: aws CLI not found. Install it: pip install awscli"
   exit 1
@@ -100,7 +106,7 @@ log "Step 1: Clean slate"
 dc down -v 2>/dev/null || true
 
 # Read config from the same env file docker compose uses, so S3 paths match.
-_env_val() { grep "^${1}=" "${ENV_FILE}" 2>/dev/null | head -1 | cut -d= -f2-; }
+_env_val() { grep "^${1}=" "${ENV_FILE}" 2>/dev/null | tail -1 | cut -d= -f2-; }
 
 BUCKET="$(_env_val SPACES_BUCKET)"
 BUCKET="${BUCKET:-openclaw-dev}"

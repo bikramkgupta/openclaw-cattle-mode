@@ -45,23 +45,46 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create .env.docker
+        env:
+          GRADIENT_API_KEY: ${{ secrets.GRADIENT_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AGENT_DEFAULT_MODEL: ${{ secrets.AGENT_DEFAULT_MODEL }}
+          AGENT_ID: ${{ secrets.AGENT_ID }}
+          AGENT_NAME: ${{ secrets.AGENT_NAME || 'OpenClaw CI Agent' }}
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
         run: |
-          cat << 'ENVFILE' > .env.docker
-          IMAGE_TAG=2026.2.12
-          GRADIENT_API_KEY=${{ secrets.GRADIENT_API_KEY }}
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-          AGENT_DEFAULT_MODEL=${{ secrets.AGENT_DEFAULT_MODEL }}
-          AGENT_ID=${{ secrets.AGENT_ID }}
-          AGENT_NAME=${{ secrets.AGENT_NAME || 'OpenClaw CI Agent' }}
-          OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
-          SPACES_BUCKET=openclaw-dev
-          SPACES_REGION=us-east-1
-          SPACES_ACCESS_KEY_ID=rustfsadmin
-          SPACES_SECRET_ACCESS_KEY=rustfsadmin
-          S3_ENDPOINT_URL=http://rustfs:9000
-          RUSTFS_IMAGE=rustfs/rustfs:1.0.0-alpha.82
-          ENVFILE
+          sanitize() { printf '%s' "$1" | tr -d '\n\r'; }
+          {
+            echo "IMAGE_TAG=2026.2.12"
+            printf 'GRADIENT_API_KEY=%s\n' "$(sanitize "$GRADIENT_API_KEY")"
+            printf 'OPENAI_API_KEY=%s\n' "$(sanitize "$OPENAI_API_KEY")"
+            printf 'ANTHROPIC_API_KEY=%s\n' "$(sanitize "$ANTHROPIC_API_KEY")"
+            printf 'AGENT_DEFAULT_MODEL=%s\n' "$(sanitize "$AGENT_DEFAULT_MODEL")"
+            printf 'AGENT_ID=%s\n' "$(sanitize "$AGENT_ID")"
+            printf 'AGENT_NAME=%s\n' "$(sanitize "$AGENT_NAME")"
+            printf 'OPENCLAW_GATEWAY_TOKEN=%s\n' "$(sanitize "$OPENCLAW_GATEWAY_TOKEN")"
+            echo "SPACES_BUCKET=openclaw-dev"
+            echo "SPACES_REGION=us-east-1"
+            echo "SPACES_ACCESS_KEY_ID=rustfsadmin"
+            echo "SPACES_SECRET_ACCESS_KEY=rustfsadmin"
+            echo "S3_ENDPOINT_URL=http://rustfs:9000"
+            echo "RUSTFS_IMAGE=rustfs/rustfs:1.0.0-alpha.82"
+          } > .env.docker
+
+      - name: Validate .env.docker
+        run: |
+          dupes=$(awk -F= 'NF>1 && $1!="" {print $1}' .env.docker | sort | uniq -d)
+          if [[ -n "$dupes" ]]; then
+            echo "::error::Duplicate keys in .env.docker: $dupes"
+            exit 1
+          fi
+          bucket=$(grep '^SPACES_BUCKET=' .env.docker | cut -d= -f2-)
+          if [[ "$bucket" != "openclaw-dev" ]]; then
+            echo "::error::SPACES_BUCKET must be 'openclaw-dev' in CI, got: $bucket"
+            exit 1
+          fi
+          echo ".env.docker validated ($(wc -l < .env.docker) lines, no duplicates)"
 
       - name: Decide smoke vs full E2E
         id: mode
@@ -95,23 +118,39 @@ jobs:
           curl -sL https://github.com/digitalocean/doctl/releases/download/v1.104.0/doctl-1.104.0-linux-amd64.tar.gz | sudo tar -xzf - -C /usr/local/bin
 
       - name: Create .env.remote
+        env:
+          IMAGE_TAG: ${{ secrets.IMAGE_TAG || '2026.2.12' }}
+          AGENT_ID: ${{ secrets.AGENT_ID }}
+          AGENT_NAME: ${{ secrets.AGENT_NAME }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWFROM: ${{ secrets.TELEGRAM_ALLOWFROM }}
+          WHATSAPP_ALLOWFROM: ${{ secrets.WHATSAPP_ALLOWFROM }}
+          GRADIENT_API_KEY: ${{ secrets.GRADIENT_API_KEY }}
+          AGENT_DEFAULT_MODEL: ${{ secrets.AGENT_DEFAULT_MODEL }}
+          NODE_OPTIONS: ${{ secrets.NODE_OPTIONS || '--max-old-space-size=768' }}
+          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+          SPACES_BUCKET: ${{ secrets.SPACES_BUCKET }}
+          SPACES_REGION: ${{ secrets.SPACES_REGION }}
+          SPACES_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY_ID }}
+          SPACES_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
         run: |
-          cat << 'ENVFILE' > .env.remote
-          IMAGE_TAG=${{ secrets.IMAGE_TAG || '2026.2.12' }}
-          AGENT_ID=${{ secrets.AGENT_ID }}
-          AGENT_NAME=${{ secrets.AGENT_NAME }}
-          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_ALLOWFROM=${{ secrets.TELEGRAM_ALLOWFROM }}
-          WHATSAPP_ALLOWFROM=${{ secrets.WHATSAPP_ALLOWFROM }}
-          GRADIENT_API_KEY=${{ secrets.GRADIENT_API_KEY }}
-          AGENT_DEFAULT_MODEL=${{ secrets.AGENT_DEFAULT_MODEL }}
-          NODE_OPTIONS=${{ secrets.NODE_OPTIONS || '--max-old-space-size=768' }}
-          OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
-          SPACES_BUCKET=${{ secrets.SPACES_BUCKET }}
-          SPACES_REGION=${{ secrets.SPACES_REGION }}
-          SPACES_ACCESS_KEY_ID=${{ secrets.SPACES_ACCESS_KEY_ID }}
-          SPACES_SECRET_ACCESS_KEY=${{ secrets.SPACES_SECRET_ACCESS_KEY }}
-          ENVFILE
+          sanitize() { printf '%s' "$1" | tr -d '\n\r'; }
+          {
+            printf 'IMAGE_TAG=%s\n' "$(sanitize "$IMAGE_TAG")"
+            printf 'AGENT_ID=%s\n' "$(sanitize "$AGENT_ID")"
+            printf 'AGENT_NAME=%s\n' "$(sanitize "$AGENT_NAME")"
+            printf 'TELEGRAM_BOT_TOKEN=%s\n' "$(sanitize "$TELEGRAM_BOT_TOKEN")"
+            printf 'TELEGRAM_ALLOWFROM=%s\n' "$(sanitize "$TELEGRAM_ALLOWFROM")"
+            printf 'WHATSAPP_ALLOWFROM=%s\n' "$(sanitize "$WHATSAPP_ALLOWFROM")"
+            printf 'GRADIENT_API_KEY=%s\n' "$(sanitize "$GRADIENT_API_KEY")"
+            printf 'AGENT_DEFAULT_MODEL=%s\n' "$(sanitize "$AGENT_DEFAULT_MODEL")"
+            printf 'NODE_OPTIONS=%s\n' "$(sanitize "$NODE_OPTIONS")"
+            printf 'OPENCLAW_GATEWAY_TOKEN=%s\n' "$(sanitize "$OPENCLAW_GATEWAY_TOKEN")"
+            printf 'SPACES_BUCKET=%s\n' "$(sanitize "$SPACES_BUCKET")"
+            printf 'SPACES_REGION=%s\n' "$(sanitize "$SPACES_REGION")"
+            printf 'SPACES_ACCESS_KEY_ID=%s\n' "$(sanitize "$SPACES_ACCESS_KEY_ID")"
+            printf 'SPACES_SECRET_ACCESS_KEY=%s\n' "$(sanitize "$SPACES_SECRET_ACCESS_KEY")"
+          } > .env.remote
 
       - name: Deploy to App Platform
         env:
