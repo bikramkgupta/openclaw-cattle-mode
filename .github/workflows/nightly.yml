@@ -68,12 +68,12 @@ jobs:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
   # ---------------------------------------------------------------------------
-  # 3. Update production (only when build succeeded)
+  # 3. Update production (only when test passed)
   # ---------------------------------------------------------------------------
   update-production:
     runs-on: ubuntu-latest
-    needs: [check-version, build-image]
-    if: needs.build-image.result == 'success'
+    needs: [check-version, test-fresh-install]
+    if: needs.test-fresh-install.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
@@ -189,10 +189,12 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------------
-  # 4. Test fresh install (runs in parallel — no needs)
+  # 4. Test fresh install (sequential — tests new image before production deploy)
   # ---------------------------------------------------------------------------
   test-fresh-install:
     runs-on: ubuntu-latest
+    needs: [check-version, build-image]
+    if: needs.build-image.result == 'success'
     timeout-minutes: 12
     outputs:
       app_id: ${{ steps.create.outputs.app_id }}
@@ -204,12 +206,6 @@ jobs:
         with:
           token: ${{ secrets.DIGITALOCEAN_TOKEN }}
 
-      - name: Read current version
-        id: version
-        run: |
-          CURRENT=$(grep -oP 'ARG OPENCLAW_VERSION=\K.*' openclaw-agent-image/Dockerfile)
-          echo "current=${CURRENT}" >> $GITHUB_OUTPUT
-
       - name: Render test app spec
         env:
           AGENT_ID: ${{ secrets.AGENT_ID }}
@@ -219,7 +215,7 @@ jobs:
         run: |
           sanitize() { printf '%s' "$1" | tr -d '\n\r'; }
           export NIGHTLY_APP_NAME="openclaw-nightly-${GITHUB_RUN_ID}"
-          export IMAGE_TAG="${{ steps.version.outputs.current }}"
+          export IMAGE_TAG="${{ needs.check-version.outputs.latest_version }}"
           export AGENT_ID="$(sanitize "$AGENT_ID")"
           export GRADIENT_API_KEY="$(sanitize "$GRADIENT_API_KEY")"
           export AGENT_DEFAULT_MODEL="$(sanitize "$AGENT_DEFAULT_MODEL")"
@@ -381,6 +377,28 @@ jobs:
           echo "| Latest on npm | \`${LATEST}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| New Version? | \`${NEW}\` |" >> $GITHUB_STEP_SUMMARY
 
+      - name: Update repo version files
+        if: needs.update-production.result == 'success'
+        run: |
+          NEW_VERSION="${{ needs.check-version.outputs.latest_version }}"
+
+          # Dockerfile
+          sed -i "s/ARG OPENCLAW_VERSION=.*/ARG OPENCLAW_VERSION=${NEW_VERSION}/" \
+            openclaw-agent-image/Dockerfile
+
+          # .env.remote.example
+          sed -i "s/IMAGE_TAG=[0-9.]*/IMAGE_TAG=${NEW_VERSION}/" .env.remote.example
+          sed -i "s/use [0-9.]* to match/use ${NEW_VERSION} to match/" .env.remote.example
+
+          # .env.docker.example
+          sed -i "s/IMAGE_TAG=[0-9.]*/IMAGE_TAG=${NEW_VERSION}/" .env.docker.example
+
+          # README — demote "Current" to "Tested", insert new Current row
+          sed -i 's/| \*\*Current\*\* |/| Tested |/' README.md
+          sed -i "/^|---.*---.*---.*---/a | \`${NEW_VERSION}\` | \`${NEW_VERSION}\` | **Current** | — |" README.md
+          # README — update IMAGE_TAG example
+          sed -i "s/\`IMAGE_TAG=[0-9.]*\`/\`IMAGE_TAG=${NEW_VERSION}\`/" README.md
+
       - name: Update version badge
         run: |
           VERSION="${{ needs.check-version.outputs.current_version }}"
@@ -401,15 +419,27 @@ jobs:
           printf '{\n  "schemaVersion": 1,\n  "label": "openclaw",\n  "message": "v%s",\n  "color": "%s"\n}\n' \
             "${VERSION}" "${COLOR}" > .github/badges/version.json
 
-      - name: Commit badge
+      - name: Commit version updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/badges/version.json
+          if [[ "${{ needs.update-production.result }}" == "success" ]]; then
+            git add openclaw-agent-image/Dockerfile \
+                     .env.remote.example \
+                     .env.docker.example \
+                     README.md
+          fi
           if git diff --cached --quiet; then
-            echo "No badge changes to commit"
+            echo "No changes to commit"
           else
-            git commit -m "Update version badge [skip ci]"
+            NEW_VERSION="${{ needs.check-version.outputs.latest_version }}"
+            if [[ "${{ needs.update-production.result }}" == "success" ]]; then
+              MSG="Auto-update to OpenClaw ${NEW_VERSION} [skip ci]"
+            else
+              MSG="Update version badge [skip ci]"
+            fi
+            git commit -m "${MSG}"
             git push
           fi
 

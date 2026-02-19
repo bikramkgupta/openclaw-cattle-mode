@@ -54,7 +54,8 @@ jobs:
         run: |
           sanitize() { printf '%s' "$1" | tr -d '\n\r'; }
           {
-            echo "IMAGE_TAG=2026.2.12"
+            IMAGE_TAG=$(grep -oP 'ARG OPENCLAW_VERSION=\K.*' openclaw-agent-image/Dockerfile)
+            echo "IMAGE_TAG=${IMAGE_TAG}"
             printf 'GRADIENT_API_KEY=%s\n' "$(sanitize "$GRADIENT_API_KEY")"
             printf 'OPENAI_API_KEY=%s\n' "$(sanitize "$OPENAI_API_KEY")"
             printf 'ANTHROPIC_API_KEY=%s\n' "$(sanitize "$ANTHROPIC_API_KEY")"
@@ -117,7 +118,7 @@ jobs:
 
       - name: Create .env.remote
         env:
-          IMAGE_TAG: ${{ secrets.IMAGE_TAG || '2026.2.12' }}
+          IMAGE_TAG: ${{ secrets.IMAGE_TAG }}
           AGENT_ID: ${{ secrets.AGENT_ID }}
           AGENT_NAME: ${{ secrets.AGENT_NAME }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -132,6 +133,11 @@ jobs:
           SPACES_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY_ID }}
           SPACES_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
         run: |
+          # Fall back to Dockerfile version if IMAGE_TAG secret is not set
+          if [[ -z "${IMAGE_TAG}" ]]; then
+            IMAGE_TAG=$(grep -oP 'ARG OPENCLAW_VERSION=\K.*' openclaw-agent-image/Dockerfile)
+            echo "IMAGE_TAG not set in secrets, using Dockerfile version: ${IMAGE_TAG}"
+          fi
           sanitize() { printf '%s' "$1" | tr -d '\n\r'; }
           {
             printf 'IMAGE_TAG=%s\n' "$(sanitize "$IMAGE_TAG")"
