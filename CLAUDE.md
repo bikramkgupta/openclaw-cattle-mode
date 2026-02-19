@@ -136,3 +136,14 @@ gh workflow run ghcr-build-push.yml -f openclaw_version=2026.2.12
 | `.env.remote.example` | No | Template for `.env.remote` |
 
 See `DEPLOYMENT.md` for full env var reference and adding new variables.
+
+## File Map
+
+```
+vision.md        ← Problem, users, outcome, metrics
+roadmap.md       ← Outcome-based deliverables (R1, R2, ...)
+tasks/           ← One file per task (R1-task-01.md, ...)
+architecture.md  ← System structure (created when needed)
+decisions.md     ← ADRs (created when needed)
+BLOCKERS.md      ← Failed tasks with error context
+```
