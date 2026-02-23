@@ -102,6 +102,7 @@ The agent's entire runtime state is continuously synced to a Spaces bucket. When
 
 | Directory | Contents |
 |-----------|----------|
+| `2026.2.22-2` | `2026.2.22-2` | **Current** | — |
 | `workspace/` | `AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `memory/`, `MEMORY.md`, and everything else the agent creates |
 | `agents/` | Session transcripts, auth profiles, model registry — for all agent IDs (supports multi-agent) |
 | `credentials/` | OAuth tokens, API keys |
@@ -110,6 +111,7 @@ The agent's entire runtime state is continuously synced to a Spaces bucket. When
 
 | Directory | Why |
 |-----------|-----|
+| `2026.2.22-2` | `2026.2.22-2` | **Current** | — |
 | `openclaw.json` | Rendered from environment variables at boot — ephemeral |
 
 ### How it works
@@ -142,7 +144,7 @@ Changes take effect on the next container restart or redeploy.
 
    Run the **"Build and Push to GHCR"** workflow in GitHub Actions.
 
-2. Set the deploy tag in `.env.remote`: `IMAGE_TAG=2026.2.17` (or the version you built). This controls which image tag App Platform pulls.
+2. Set the deploy tag in `.env.remote`: `IMAGE_TAG=2026.2.22-2` (or the version you built). This controls which image tag App Platform pulls.
 
 3. Redeploy:
 
@@ -154,7 +156,8 @@ Changes take effect on the next container restart or redeploy.
 
 | OpenClaw Version | Image Tag | Status | Notes |
 |------------------|-----------|--------|-------|
-| `2026.2.17` | `2026.2.17` | **Current** | — |
+| `2026.2.22-2` | `2026.2.22-2` | **Current** | — |
+| `2026.2.17` | `2026.2.17` | Tested | — |
 | `2026.2.15` | `2026.2.15` | Tested | — |
 | `2026.2.14` | `2026.2.14` | Tested | — |
 | `2026.2.13` | `2026.2.13` | Tested | — |
@@ -177,6 +180,7 @@ The agent runs on a 1cpu/1gb instance. Here's how the ~1024MB is used:
 
 | Component | Typical RSS | Notes |
 |-----------|-------------|-------|
+| `2026.2.22-2` | `2026.2.22-2` | **Current** | — |
 | `openclaw` (CLI parent) | ~130 MB | Spawns and supervises the gateway |
 | `openclaw-gateway` | ~470 MB | V8 heap + WebSocket + Telegram polling |
 | OS + Node runtime | ~50 MB | Shared libs, kernel buffers |
@@ -188,6 +192,7 @@ The V8 heap limit is set via `NODE_OPTIONS=--max-old-space-size=<MB>`:
 
 | Instance | Recommended | Why |
 |----------|-------------|-----|
+| `2026.2.22-2` | `2026.2.22-2` | **Current** | — |
 | 1cpu/1gb | `768` | 512 OOMs during `openclaw doctor`; 768 leaves room for gateway |
 | 1cpu/2gb | `1536` | Comfortable margin for subagents and large tool outputs |
 
@@ -204,6 +209,7 @@ The daily gateway restart (see Architecture) mitigates slow leaks.
 
 | File | Purpose |
 |------|---------|
+| `2026.2.22-2` | `2026.2.22-2` | **Current** | — |
 | `.env.docker.example` | Template for local Docker Compose dev |
 | `.env.remote.example` | Template for App Platform deploy |
 
@@ -215,6 +221,7 @@ All tests except the deploy-spec check run **locally** (Docker + Docker Compose)
 
 | Test | Command | Where |
 |------|---------|--------|
+| `2026.2.22-2` | `2026.2.22-2` | **Current** | — |
 | Container boot (smoke) | `bash scripts/smoke-boot.sh` | Local |
 | Backup and restore | `bash scripts/test-backup.sh` | Local |
 | Deploy spec render | `bash scripts/test-deploy-spec.sh` | Local or CI |
