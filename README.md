@@ -102,7 +102,8 @@ The agent's entire runtime state is continuously synced to a Spaces bucket. When
 
 | Directory | Contents |
 |-----------|----------|
-| `2026.2.24` | `2026.2.24` | **Current** | — |
+| `2026.2.25` | `2026.2.25` | **Current** | — |
+| `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
 | `2026.2.22-2` | `2026.2.22-2` | Tested | — |
 | `workspace/` | `AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `memory/`, `MEMORY.md`, and everything else the agent creates |
@@ -113,7 +114,8 @@ The agent's entire runtime state is continuously synced to a Spaces bucket. When
 
 | Directory | Why |
 |-----------|-----|
-| `2026.2.24` | `2026.2.24` | **Current** | — |
+| `2026.2.25` | `2026.2.25` | **Current** | — |
+| `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
 | `2026.2.22-2` | `2026.2.22-2` | Tested | — |
 | `openclaw.json` | Rendered from environment variables at boot — ephemeral |
@@ -160,7 +162,8 @@ Changes take effect on the next container restart or redeploy.
 
 | OpenClaw Version | Image Tag | Status | Notes |
 |------------------|-----------|--------|-------|
-| `2026.2.24` | `2026.2.24` | **Current** | — |
+| `2026.2.25` | `2026.2.25` | **Current** | — |
+| `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
 | `2026.2.22-2` | `2026.2.22-2` | Tested | — |
 | `2026.2.17` | `2026.2.17` | Tested | — |
@@ -186,7 +189,8 @@ The agent runs on a 1cpu/1gb instance. Here's how the ~1024MB is used:
 
 | Component | Typical RSS | Notes |
 |-----------|-------------|-------|
-| `2026.2.24` | `2026.2.24` | **Current** | — |
+| `2026.2.25` | `2026.2.25` | **Current** | — |
+| `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
 | `2026.2.22-2` | `2026.2.22-2` | Tested | — |
 | `openclaw` (CLI parent) | ~130 MB | Spawns and supervises the gateway |
@@ -200,7 +204,8 @@ The V8 heap limit is set via `NODE_OPTIONS=--max-old-space-size=<MB>`:
 
 | Instance | Recommended | Why |
 |----------|-------------|-----|
-| `2026.2.24` | `2026.2.24` | **Current** | — |
+| `2026.2.25` | `2026.2.25` | **Current** | — |
+| `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
 | `2026.2.22-2` | `2026.2.22-2` | Tested | — |
 | 1cpu/1gb | `768` | 512 OOMs during `openclaw doctor`; 768 leaves room for gateway |
@@ -219,7 +224,8 @@ The daily gateway restart (see Architecture) mitigates slow leaks.
 
 | File | Purpose |
 |------|---------|
-| `2026.2.24` | `2026.2.24` | **Current** | — |
+| `2026.2.25` | `2026.2.25` | **Current** | — |
+| `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
 | `2026.2.22-2` | `2026.2.22-2` | Tested | — |
 | `.env.docker.example` | Template for local Docker Compose dev |
@@ -233,7 +239,8 @@ All tests except the deploy-spec check run **locally** (Docker + Docker Compose)
 
 | Test | Command | Where |
 |------|---------|--------|
-| `2026.2.24` | `2026.2.24` | **Current** | — |
+| `2026.2.25` | `2026.2.25` | **Current** | — |
+| `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
 | `2026.2.22-2` | `2026.2.22-2` | Tested | — |
 | Container boot (smoke) | `bash scripts/smoke-boot.sh` | Local |
