@@ -102,7 +102,8 @@ The agent's entire runtime state is continuously synced to a Spaces bucket. When
 
 | Directory | Contents |
 |-----------|----------|
-| `2026.2.26` | `2026.2.26` | **Current** | — |
+| `2026.3.1` | `2026.3.1` | **Current** | — |
+| `2026.2.26` | `2026.2.26` | Tested | — |
 | `2026.2.25` | `2026.2.25` | Tested | — |
 | `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
@@ -115,7 +116,8 @@ The agent's entire runtime state is continuously synced to a Spaces bucket. When
 
 | Directory | Why |
 |-----------|-----|
-| `2026.2.26` | `2026.2.26` | **Current** | — |
+| `2026.3.1` | `2026.3.1` | **Current** | — |
+| `2026.2.26` | `2026.2.26` | Tested | — |
 | `2026.2.25` | `2026.2.25` | Tested | — |
 | `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
@@ -164,7 +166,8 @@ Changes take effect on the next container restart or redeploy.
 
 | OpenClaw Version | Image Tag | Status | Notes |
 |------------------|-----------|--------|-------|
-| `2026.2.26` | `2026.2.26` | **Current** | — |
+| `2026.3.1` | `2026.3.1` | **Current** | — |
+| `2026.2.26` | `2026.2.26` | Tested | — |
 | `2026.2.25` | `2026.2.25` | Tested | — |
 | `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
@@ -192,7 +195,8 @@ The agent runs on a 1cpu/1gb instance. Here's how the ~1024MB is used:
 
 | Component | Typical RSS | Notes |
 |-----------|-------------|-------|
-| `2026.2.26` | `2026.2.26` | **Current** | — |
+| `2026.3.1` | `2026.3.1` | **Current** | — |
+| `2026.2.26` | `2026.2.26` | Tested | — |
 | `2026.2.25` | `2026.2.25` | Tested | — |
 | `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
@@ -208,7 +212,8 @@ The V8 heap limit is set via `NODE_OPTIONS=--max-old-space-size=<MB>`:
 
 | Instance | Recommended | Why |
 |----------|-------------|-----|
-| `2026.2.26` | `2026.2.26` | **Current** | — |
+| `2026.3.1` | `2026.3.1` | **Current** | — |
+| `2026.2.26` | `2026.2.26` | Tested | — |
 | `2026.2.25` | `2026.2.25` | Tested | — |
 | `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
@@ -229,7 +234,8 @@ The daily gateway restart (see Architecture) mitigates slow leaks.
 
 | File | Purpose |
 |------|---------|
-| `2026.2.26` | `2026.2.26` | **Current** | — |
+| `2026.3.1` | `2026.3.1` | **Current** | — |
+| `2026.2.26` | `2026.2.26` | Tested | — |
 | `2026.2.25` | `2026.2.25` | Tested | — |
 | `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
@@ -245,7 +251,8 @@ All tests except the deploy-spec check run **locally** (Docker + Docker Compose)
 
 | Test | Command | Where |
 |------|---------|--------|
-| `2026.2.26` | `2026.2.26` | **Current** | — |
+| `2026.3.1` | `2026.3.1` | **Current** | — |
+| `2026.2.26` | `2026.2.26` | Tested | — |
 | `2026.2.25` | `2026.2.25` | Tested | — |
 | `2026.2.24` | `2026.2.24` | Tested | — |
 | `2026.2.23` | `2026.2.23` | Tested | — |
